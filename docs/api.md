@@ -1,6 +1,6 @@
 # CMS Admin API 명세 (백엔드 전달용)
 
-이 문서는 **관리자 대시보드**(`dashboard/`, refine 기반)가 호출하는 **관리자(admin) 전용 API** 규약을 정의한다.
+이 문서는 **관리자 대시보드**(`frontend/apps/dashboard/`, refine 기반)가 호출하는 **관리자(admin) 전용 API** 규약을 정의한다.
 백엔드(Go·Gin·헥사고날, `backend/`)는 사용자용 API를 이미 갖고 있으므로, 아래의 관리자 API를 **별도 네임스페이스로 추가**하면 된다.
 
 ## API 네임스페이스 분리

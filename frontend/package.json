@@ -1,0 +1,14 @@
+{
+  "name": "frontend",
+  "private": true,
+  "packageManager": "pnpm@9.10.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter dashboard dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "preview": "pnpm --filter dashboard preview"
+  }
+}
