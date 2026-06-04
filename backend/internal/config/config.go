@@ -15,7 +15,10 @@ type Config struct {
 	AppEnv   string
 	HTTPPort string
 	DB       DBConfig
-	Admin    AdminConfig
+	// CORSOrigins 는 공개/관리자 API 공통 허용 Origin 목록이다. ["*"] 이면 전체 허용.
+	CORSOrigins []string
+	JWT         JWTConfig
+	Admin       AdminConfig
 }
 
 // DBConfig 는 데이터베이스 연결 설정이다.
@@ -25,15 +28,17 @@ type DBConfig struct {
 	SQLitePath string // sqlite 용 파일 경로
 }
 
-// AdminConfig 는 관리자(admin) API 설정이다.
-type AdminConfig struct {
-	// CORSOrigins 는 허용할 Origin 목록이다. ["*"] 이면 전체 허용.
-	CORSOrigins []string
-	// JWTSecret 은 액세스/리프레시 토큰 서명 키이다(운영에서는 반드시 강력한 값으로 설정).
-	JWTSecret string
+// JWTConfig 는 회원/관리자 토큰 공통 서명 설정이다(용도는 audience 로 구분).
+type JWTConfig struct {
+	// Secret 은 액세스/리프레시 토큰 서명 키이다(운영에서는 반드시 강력한 값으로 설정).
+	Secret string
 	// AccessTTL/RefreshTTL 은 토큰 만료 기간이다.
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
+}
+
+// AdminConfig 는 관리자(admin) API 전용 설정이다.
+type AdminConfig struct {
 	// SeedPassword 는 admin_users 가 비어있을 때 생성하는 개발용 기본 계정 비밀번호이다.
 	SeedPassword string
 }
@@ -54,11 +59,13 @@ func Load() *Config {
 			DSN:        getEnv("DB_DSN", ""),
 			SQLitePath: getEnv("SQLITE_PATH", "cms.db"),
 		},
+		CORSOrigins: splitCSV(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:4173,http://localhost:9000,http://localhost:3000")),
+		JWT: JWTConfig{
+			Secret:     getEnv("JWT_SECRET", devJWTSecret),
+			AccessTTL:  time.Duration(getEnvInt("JWT_ACCESS_TTL_MIN", 60)) * time.Minute,
+			RefreshTTL: time.Duration(getEnvInt("JWT_REFRESH_TTL_HOURS", 168)) * time.Hour,
+		},
 		Admin: AdminConfig{
-			CORSOrigins:  splitCSV(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:4173,http://localhost:9000,http://localhost:3000")),
-			JWTSecret:    getEnv("JWT_SECRET", devJWTSecret),
-			AccessTTL:    time.Duration(getEnvInt("JWT_ACCESS_TTL_MIN", 60)) * time.Minute,
-			RefreshTTL:   time.Duration(getEnvInt("JWT_REFRESH_TTL_HOURS", 168)) * time.Hour,
 			SeedPassword: getEnv("ADMIN_SEED_PASSWORD", "secret"),
 		},
 	}
@@ -69,10 +76,10 @@ func (c *Config) Validate() error {
 	if c.AppEnv != "production" {
 		return nil
 	}
-	if c.Admin.JWTSecret == "" || c.Admin.JWTSecret == devJWTSecret {
+	if c.JWT.Secret == "" || c.JWT.Secret == devJWTSecret {
 		return errors.New("운영 환경에서는 JWT_SECRET 를 안전한 무작위 값으로 설정해야 합니다")
 	}
-	if c.Admin.AccessTTL <= 0 || c.Admin.RefreshTTL <= 0 {
+	if c.JWT.AccessTTL <= 0 || c.JWT.RefreshTTL <= 0 {
 		return errors.New("JWT 토큰 만료(JWT_ACCESS_TTL_MIN/JWT_REFRESH_TTL_HOURS)는 양수여야 합니다")
 	}
 	return nil

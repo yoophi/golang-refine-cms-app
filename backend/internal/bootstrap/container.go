@@ -13,6 +13,7 @@ import (
 
 	adminhttp "github.com/yoophi/refine-cms/backend/internal/adapter/handler/admin"
 	httpadapter "github.com/yoophi/refine-cms/backend/internal/adapter/handler/http"
+	"github.com/yoophi/refine-cms/backend/internal/adapter/handler/httpmw"
 	"github.com/yoophi/refine-cms/backend/internal/adapter/security"
 	"github.com/yoophi/refine-cms/backend/internal/adapter/storage"
 	"github.com/yoophi/refine-cms/backend/internal/config"
@@ -28,7 +29,7 @@ type dbHandle struct {
 
 // newJWTManager 는 동일 시크릿/TTL 로 audience 만 다른 토큰 매니저를 만든다(admin/user 분리).
 func newJWTManager(c *config.Config, audience string) *security.JWTManager {
-	return security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, audience)
+	return security.NewJWTManager(c.JWT.Secret, c.JWT.AccessTTL, c.JWT.RefreshTTL, audience)
 }
 
 // NewInjector 는 samber/do 컨테이너를 구성한다.
@@ -196,7 +197,7 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		// 전역 미들웨어: 로깅 / panic 복구 / CORS(프리플라이트 포함).
 		r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 		r.Use(ginzap.RecoveryWithZap(logger, true))
-		r.Use(adminhttp.CORS(c.Admin.CORSOrigins))
+		r.Use(httpmw.CORS(c.CORSOrigins))
 
 		r.GET("/healthz", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
