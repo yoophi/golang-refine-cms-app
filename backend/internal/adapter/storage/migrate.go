@@ -73,7 +73,6 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
-CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 
 CREATE TABLE IF NOT EXISTS admin_users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,7 +150,6 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
-CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 
 CREATE TABLE IF NOT EXISTS admin_users (
     id            BIGSERIAL PRIMARY KEY,
@@ -181,20 +179,25 @@ func Migrate(db *sqlx.DB, driver string) error {
 	return nil
 }
 
-// ensureCommentUserID 는 comments.user_id 컬럼이 없으면 추가한다(이미 있으면 무시).
+// ensureCommentUserID 는 comments.user_id 컬럼과 인덱스를 멱등하게 보장한다.
+// (인덱스는 컬럼이 존재한 뒤에 만들어야 하므로 스키마 문자열이 아닌 여기서 생성한다.)
 func ensureCommentUserID(db *sqlx.DB, driver string) error {
 	if driver == DriverPostgres {
-		_, err := db.Exec(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`)
-		return err
+		if _, err := db.Exec(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`); err != nil {
+			return err
+		}
+	} else {
+		// sqlite: 컬럼 존재 여부를 pragma 로 확인 후 추가(ADD COLUMN IF NOT EXISTS 미지원).
+		var cnt int
+		if err := db.Get(&cnt, `SELECT COUNT(*) FROM pragma_table_info('comments') WHERE name = 'user_id'`); err != nil {
+			return err
+		}
+		if cnt == 0 {
+			if _, err := db.Exec(`ALTER TABLE comments ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`); err != nil {
+				return err
+			}
+		}
 	}
-	// sqlite: 컬럼 존재 여부를 pragma 로 확인 후 추가(ADD COLUMN IF NOT EXISTS 미지원).
-	var cnt int
-	if err := db.Get(&cnt, `SELECT COUNT(*) FROM pragma_table_info('comments') WHERE name = 'user_id'`); err != nil {
-		return err
-	}
-	if cnt > 0 {
-		return nil
-	}
-	_, err := db.Exec(`ALTER TABLE comments ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`)
+	_, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id)`)
 	return err
 }
