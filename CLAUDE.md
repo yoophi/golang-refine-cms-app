@@ -9,7 +9,8 @@
 │   ├── pnpm-workspace.yaml
 │   ├── package.json          # 워크스페이스 루트
 │   └── apps/
-│       └── dashboard/        # 어드민 대시보드 (refine)
+│       ├── dashboard/        # 어드민 대시보드 (refine) — 관리자 API(/admin/api/v1)
+│       └── web/              # 사용자용 웹앱 (공개 블로그) — 공개 API(/api/v1)
 └── docs/                     # 관리자 API 명세 (swagger.json, api.md, admin-auth.md) — BE 전달용
 ```
 
@@ -69,6 +70,13 @@ flowchart TB
 - `comments`: postId, parentId(nullable, 스레드), authorName, authorEmail, content, status
 - 관계: category 1:N post, post 1:N comment, post M:N tag, category·comment 자기참조.
 - 상태 enum: `Post.status` = `draft | published | archived`, `Comment.status` = `pending | approved | spam`.
+
+### 사용자용 웹앱 (`frontend/apps/web`)
+- 공개 블로그(읽기 중심). **Vite + React + TS SPA**, Tailwind + shadcn/ui(new-york), **Feature-Sliced Design**(dashboard와 동일 구조·alias `@`).
+- **refine 미사용**(어드민 전용). 데이터는 **@tanstack/react-query + axios**로 **공개 API `/api/v1`** 소비(`VITE_API_URL`).
+- 라우팅 **react-router-dom**(v7), 전역 클라이언트 상태 **zustand**(독자 댓글 작성자 이름/이메일 persist → 댓글 폼 자동완성).
+- 공개 API 계약은 BE 현행 그대로 사용: **목록 `{ data: [...] }` 엔벨로프, snake_case 필드(`category_id`, `post_id`, `published_at` 등), 게시글에 `tags[]` 임베드.** (관리자 API의 simple-rest 규약과 다름.)
+- 화면: 게시글 목록(+카테고리 필터) `/`, 게시글 상세+댓글+댓글 작성 `/posts/:id`.
 
 ## 코딩 규약 (dashboard)
 - `verbatimModuleSyntax` 활성화 — 타입 import는 반드시 `import type` 사용.
