@@ -89,10 +89,13 @@ flowchart LR
 
 | 구분 | 베이스 | 패키지 | 직렬화 | 목록 | 에러 바디 | 인증 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 사용자 | `/api/v1` | `handler/http` | snake_case | `{"data":[...]}` | `Response{code,...}` | 없음 |
-| 관리자 | `/admin/api/v1` | `handler/admin` | **camelCase** | **배열 + `X-Total-Count`** | `{"message":"..."}` | **JWT + ACL** |
+| 사용자 | `/api/v1` | `handler/http` | snake_case | `{"data":[...]}` | `Response{code,...}` | 회원 JWT(쓰기/댓글) |
+| 관리자 | `/admin/api/v1` | `handler/admin` | **camelCase** | **배열 + `X-Total-Count`** | `{"message":"..."}` | **관리자 JWT + ACL** |
 
-- 관리자 API 는 refine `@refinedev/simple-rest` 규약을 따른다. FE 계약: `../docs/api.md`, 머신리더블: `../docs/swagger.json`(FE 요청) / `docs/swagger.json`(BE 구현 사양, FE 공유용).
+- **공개 API 의 posts/categories/tags 는 읽기 전용(GET)** 이다. 생성/수정/삭제 관리는 관리자 API 에서만. 공개 쓰기는 댓글(로그인 회원)뿐.
+- **회원 인증**: 공개 `/api/v1/auth/*`(register/login/refresh 공개, me·logout 보호). 댓글 작성/수정/삭제는 로그인 + **소유권**(본인 댓글만; `CommentService.UpdateOwnedContent`/`DeleteOwned`).
+- **토큰 분리**: 회원/관리자 JWT 는 동일 시크릿이나 **audience(`user`/`admin`)로 분리**(`security.AudienceUser`/`AudienceAdmin`). 상호 토큰 사용 불가, refresh↔access 도 `typ` 로 구분.
+- 관리자 API 는 refine `@refinedev/simple-rest` 규약을 따른다. FE 계약: `../docs/api.md`·`../docs/user-auth.md`, 머신리더블: `../docs/swagger.json`(관리자 요청) / `docs/swagger.json`(관리자 구현) / `docs/swagger-public.json`(공개 API 구현, FE 공유용).
 - 코어 재사용: 관리자 핸들러도 동일한 `port.*Service` 를 주입받는다. 새 표현만 어댑터에 추가하고 비즈니스 로직은 중복 구현하지 않는다.
 - 목록 쿼리: `_start/_end`(페이지)·`_sort/_order`(정렬)·`{field}_like`/`{field}`(필터)는 `admin/query.go` 가 `port.ListQuery` 로 파싱 → `service.Query` → `storage` 의 `buildListClauses`. **필터/정렬 필드는 리포지토리의 화이트리스트(`fieldMap`)에만 매핑**(임의 컬럼/SQL 주입 차단). 새 필터·정렬 필드는 해당 리포지토리의 `*FilterCols`/`*SortCols` 에 추가.
 - 수정은 `PATCH`(부분): `admin/patch.go` 의 `patcher` 가 본문에 존재하는 키만 덮어쓴다(없으면 기존 값 유지, `null` 은 해제). 검증/`publishedAt`/태그 교체 등은 기존 서비스 `Update` 를 재사용한다.

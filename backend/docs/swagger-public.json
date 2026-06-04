@@ -1,0 +1,276 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CMS Public API (구현 사양)",
+    "version": "0.1.0",
+    "description": "사용자용 웹앱(frontend/apps/web)이 호출하는 **공개(public) API**. 관리자 API(/admin/api/v1)와 분리된 네임스페이스이며, BE 구현을 FE 와 공유하기 위한 문서다. 계약 원본: docs/user-auth.md, docs/api.md.\n\n## 규약\n- 베이스: `/api/v1`. 필드 네이밍 snake_case. 목록 응답은 `{ \"data\": [...] }` 봉투. 에러 바디는 `{ \"message\": \"...\" }`.\n- posts/categories/tags 는 **읽기 전용(GET)**. 생성/수정/삭제는 관리자 API 전용.\n- 회원 인증: JWT Bearer(회원 전용, 관리자 토큰과 audience 분리 → 상호 사용 불가).\n  - 토큰 누락·만료·무효 → 401, 권한/소유권 부족 → 403.\n- 댓글: 작성/수정/삭제는 **로그인 회원만**. 작성자는 토큰에서 유도(`user_id` 기록, `author_name` 자동). 수정/삭제는 **본인 소유 댓글만**(타인 403)."
+  },
+  "servers": [
+    { "url": "http://localhost:9000/api/v1", "description": "로컬 개발 서버 (HTTP_PORT=9000)" },
+    { "url": "http://localhost:8080/api/v1", "description": "백엔드 기본 포트" }
+  ],
+  "tags": [
+    { "name": "auth", "description": "회원 인증/계정" },
+    { "name": "comments", "description": "댓글(소유권)" },
+    { "name": "posts", "description": "게시글(읽기 전용)" },
+    { "name": "categories", "description": "카테고리(읽기 전용)" },
+    { "name": "tags", "description": "태그(읽기 전용)" }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"], "summary": "회원 가입",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } } },
+        "responses": {
+          "201": { "description": "가입됨(토큰+회원)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "description": "이메일 중복", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"], "summary": "로그인",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": {
+          "200": { "description": "토큰+회원", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"], "summary": "액세스 토큰 갱신",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } } } },
+        "responses": {
+          "200": { "description": "갱신된 토큰", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"], "summary": "현재 회원 정보", "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "회원", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "patch": {
+        "tags": ["auth"], "summary": "회원 정보 부분 수정", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateMeRequest" } } } },
+        "responses": {
+          "200": { "description": "수정된 회원", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "description": "이메일 중복", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"], "summary": "로그아웃(스테이트리스, 200)", "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "성공", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/posts": {
+      "get": {
+        "tags": ["posts"], "summary": "게시글 목록(읽기 전용)",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["draft", "published", "archived"] } },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "게시글 목록", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostList" } } } } }
+      }
+    },
+    "/posts/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/idPath" }],
+      "get": {
+        "tags": ["posts"], "summary": "게시글 단건",
+        "responses": {
+          "200": { "description": "게시글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/posts/{id}/comments": {
+      "parameters": [{ "$ref": "#/components/parameters/idPath" }],
+      "get": {
+        "tags": ["comments"], "summary": "게시글 댓글 목록(공개, user_id 포함)",
+        "responses": { "200": { "description": "댓글 목록", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentList" } } } } }
+      }
+    },
+
+    "/categories": {
+      "get": { "tags": ["categories"], "summary": "카테고리 목록(읽기 전용)", "responses": { "200": { "description": "목록", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryList" } } } } } }
+    },
+    "/categories/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/idPath" }],
+      "get": { "tags": ["categories"], "summary": "카테고리 단건", "responses": { "200": { "description": "카테고리", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/tags": {
+      "get": { "tags": ["tags"], "summary": "태그 목록(읽기 전용)", "responses": { "200": { "description": "목록", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagList" } } } } } }
+    },
+    "/tags/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/idPath" }],
+      "get": { "tags": ["tags"], "summary": "태그 단건", "responses": { "200": { "description": "태그", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tag" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+
+    "/comments": {
+      "post": {
+        "tags": ["comments"], "summary": "댓글 작성(로그인 회원)", "security": [{ "bearerAuth": [] }],
+        "description": "작성자는 토큰의 회원에서 유도한다(user_id 기록, author_name 자동). 기본 상태 pending.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentCreate" } } } },
+        "responses": {
+          "201": { "description": "생성된 댓글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/comments/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/idPath" }],
+      "get": {
+        "tags": ["comments"], "summary": "댓글 단건",
+        "responses": { "200": { "description": "댓글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } }, "404": { "$ref": "#/components/responses/NotFound" } }
+      },
+      "patch": {
+        "tags": ["comments"], "summary": "본인 댓글 내용 수정", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CommentUpdate" } } } },
+        "responses": {
+          "200": { "description": "수정된 댓글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Comment" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["comments"], "summary": "본인 댓글 삭제", "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "삭제 성공(본문 없음)" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "회원 로그인으로 발급된 JWT(회원 audience). 관리자 토큰과 분리." }
+    },
+    "parameters": {
+      "idPath": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+    },
+    "responses": {
+      "BadRequest": { "description": "잘못된 요청", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "인증 실패(토큰 누락·만료·무효)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Forbidden": { "description": "권한/소유권 부족(본인 댓글 아님)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "리소스를 찾을 수 없음", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["id", "email", "name", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string", "format": "email" },
+          "name": { "type": "string" },
+          "avatar": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object", "required": ["email", "password", "name"],
+        "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "format": "password" }, "name": { "type": "string" } }
+      },
+      "LoginRequest": {
+        "type": "object", "required": ["email", "password"],
+        "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "format": "password" } }
+      },
+      "UpdateMeRequest": {
+        "type": "object",
+        "description": "모든 필드 선택(부분 수정). password 변경 시 currentPassword 필요.",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "format": "password" },
+          "currentPassword": { "type": "string", "format": "password" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object", "required": ["accessToken", "user"],
+        "properties": {
+          "accessToken": { "type": "string", "description": "JWT 액세스 토큰" },
+          "refreshToken": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "RefreshRequest": { "type": "object", "required": ["refreshToken"], "properties": { "refreshToken": { "type": "string" } } },
+      "RefreshResponse": { "type": "object", "required": ["accessToken"], "properties": { "accessToken": { "type": "string" }, "refreshToken": { "type": "string" } } },
+      "Comment": {
+        "type": "object",
+        "required": ["id", "post_id", "author_name", "content", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "integer" },
+          "post_id": { "type": "integer" },
+          "parent_id": { "type": "integer", "nullable": true },
+          "user_id": { "type": "integer", "nullable": true, "description": "작성 회원 ID. 익명/레거시는 null. 웹앱은 이 값으로 '내 댓글'을 식별해 수정/삭제 노출." },
+          "author_name": { "type": "string" },
+          "author_email": { "type": "string" },
+          "content": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "spam"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CommentCreate": {
+        "type": "object", "required": ["post_id", "content"],
+        "properties": { "post_id": { "type": "integer" }, "parent_id": { "type": "integer", "nullable": true }, "content": { "type": "string" } }
+      },
+      "CommentUpdate": { "type": "object", "required": ["content"], "properties": { "content": { "type": "string" } } },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "excerpt": { "type": "string" },
+          "content": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+          "category_id": { "type": "integer", "nullable": true },
+          "tags": { "type": "array", "items": { "$ref": "#/components/schemas/Tag" } },
+          "published_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" }, "name": { "type": "string" }, "slug": { "type": "string" },
+          "description": { "type": "string" }, "parent_id": { "type": "integer", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" }, "name": { "type": "string" }, "slug": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PostList": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Post" } } } },
+      "CategoryList": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } },
+      "TagList": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Tag" } } } },
+      "CommentList": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } } } },
+      "Error": { "type": "object", "required": ["message"], "properties": { "message": { "type": "string" } } }
+    }
+  }
+}
