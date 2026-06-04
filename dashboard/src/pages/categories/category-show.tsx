@@ -3,12 +3,17 @@ import { Pencil } from 'lucide-react'
 
 import type { Category } from '@/entities/category'
 import { formatDateTime } from '@/shared/lib'
-import { Button, Card, CardContent, PageHeader } from '@/shared/ui'
+import {
+  Button,
+  Card,
+  CardContent,
+  DescriptionList,
+  PageHeader,
+} from '@/shared/ui'
 
 export function CategoryShow() {
   const { list, edit } = useNavigation()
-  const { query } = useShow<Category>({ resource: 'categories' })
-  const record = query.data?.data
+  const { query, result: record } = useShow<Category>({ resource: 'categories' })
 
   return (
     <div>
@@ -27,22 +32,27 @@ export function CategoryShow() {
           {query.isLoading ? (
             <p className="text-muted-foreground text-sm">불러오는 중…</p>
           ) : record ? (
-            <dl className="grid grid-cols-[8rem_1fr] gap-y-3 text-sm">
-              <dt className="text-muted-foreground">ID</dt>
-              <dd>{record.id}</dd>
-              <dt className="text-muted-foreground">이름</dt>
-              <dd>{record.name}</dd>
-              <dt className="text-muted-foreground">슬러그</dt>
-              <dd>{record.slug}</dd>
-              <dt className="text-muted-foreground">설명</dt>
-              <dd className="whitespace-pre-wrap">{record.description || '—'}</dd>
-              <dt className="text-muted-foreground">상위 카테고리</dt>
-              <dd>{record.parentId != null ? `#${record.parentId}` : '—'}</dd>
-              <dt className="text-muted-foreground">생성일</dt>
-              <dd>{formatDateTime(record.createdAt)}</dd>
-              <dt className="text-muted-foreground">수정일</dt>
-              <dd>{formatDateTime(record.updatedAt)}</dd>
-            </dl>
+            <DescriptionList
+              items={[
+                { label: 'ID', value: record.id },
+                { label: '이름', value: record.name },
+                { label: '슬러그', value: record.slug },
+                {
+                  label: '설명',
+                  value: (
+                    <span className="whitespace-pre-wrap">
+                      {record.description || '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: '상위 카테고리',
+                  value: record.parentId != null ? `#${record.parentId}` : '—',
+                },
+                { label: '생성일', value: formatDateTime(record.createdAt) },
+                { label: '수정일', value: formatDateTime(record.updatedAt) },
+              ]}
+            />
           ) : (
             <p className="text-muted-foreground text-sm">데이터가 없습니다.</p>
           )}

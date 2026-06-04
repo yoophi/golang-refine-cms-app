@@ -33,3 +33,5 @@ export {
 } from './select'
 export { Toaster } from './sonner'
 export { PageHeader } from './page-header'
+export { DescriptionList } from './description-list'
+export type { DescriptionListItem } from './description-list'

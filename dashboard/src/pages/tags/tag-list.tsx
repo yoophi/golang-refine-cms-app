@@ -1,23 +1,13 @@
 import { useMemo } from 'react'
 import { useNavigation } from '@refinedev/core'
 import { useTable } from '@refinedev/react-table'
-import { type ColumnDef, flexRender } from '@tanstack/react-table'
+import { type ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 
 import type { Tag } from '@/entities/tag'
 import { formatDateTime } from '@/shared/lib'
-import {
-  Button,
-  Card,
-  PageHeader,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui'
-import { Pagination, RowActions } from '@/widgets/crud-actions'
+import { Button, PageHeader } from '@/shared/ui'
+import { DataTable, RowActions } from '@/widgets/crud-actions'
 
 export function TagList() {
   const { create } = useNavigation()
@@ -42,19 +32,10 @@ export function TagList() {
     [],
   )
 
-  const {
-    reactTable: {
-      getHeaderGroups,
-      getRowModel,
-      getState,
-      getPageCount,
-      getCanPreviousPage,
-      getCanNextPage,
-      setPageIndex,
-    },
-  } = useTable<Tag>({ columns, refineCoreProps: { resource: 'tags' } })
-
-  const rows = getRowModel().rows
+  const { reactTable } = useTable<Tag>({
+    columns,
+    refineCoreProps: { resource: 'tags' },
+  })
 
   return (
     <div>
@@ -63,55 +44,7 @@ export function TagList() {
           <Plus className="size-4" /> 태그 생성
         </Button>
       </PageHeader>
-      <Card className="py-0">
-        <Table>
-          <TableHeader>
-            {getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-muted-foreground h-24 text-center"
-                >
-                  데이터가 없습니다.
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
-      <Pagination
-        pageIndex={getState().pagination.pageIndex}
-        pageCount={getPageCount()}
-        canPrevious={getCanPreviousPage()}
-        canNext={getCanNextPage()}
-        onPageChange={setPageIndex}
-      />
+      <DataTable table={reactTable} columnCount={columns.length} />
     </div>
   )
 }

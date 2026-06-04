@@ -3,12 +3,17 @@ import { Pencil } from 'lucide-react'
 
 import type { Tag } from '@/entities/tag'
 import { formatDateTime } from '@/shared/lib'
-import { Button, Card, CardContent, PageHeader } from '@/shared/ui'
+import {
+  Button,
+  Card,
+  CardContent,
+  DescriptionList,
+  PageHeader,
+} from '@/shared/ui'
 
 export function TagShow() {
   const { list, edit } = useNavigation()
-  const { query } = useShow<Tag>({ resource: 'tags' })
-  const record = query.data?.data
+  const { query, result: record } = useShow<Tag>({ resource: 'tags' })
 
   return (
     <div>
@@ -27,18 +32,15 @@ export function TagShow() {
           {query.isLoading ? (
             <p className="text-muted-foreground text-sm">불러오는 중…</p>
           ) : record ? (
-            <dl className="grid grid-cols-[8rem_1fr] gap-y-3 text-sm">
-              <dt className="text-muted-foreground">ID</dt>
-              <dd>{record.id}</dd>
-              <dt className="text-muted-foreground">이름</dt>
-              <dd>{record.name}</dd>
-              <dt className="text-muted-foreground">슬러그</dt>
-              <dd>{record.slug}</dd>
-              <dt className="text-muted-foreground">생성일</dt>
-              <dd>{formatDateTime(record.createdAt)}</dd>
-              <dt className="text-muted-foreground">수정일</dt>
-              <dd>{formatDateTime(record.updatedAt)}</dd>
-            </dl>
+            <DescriptionList
+              items={[
+                { label: 'ID', value: record.id },
+                { label: '이름', value: record.name },
+                { label: '슬러그', value: record.slug },
+                { label: '생성일', value: formatDateTime(record.createdAt) },
+                { label: '수정일', value: formatDateTime(record.updatedAt) },
+              ]}
+            />
           ) : (
             <p className="text-muted-foreground text-sm">데이터가 없습니다.</p>
           )}

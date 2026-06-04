@@ -9,7 +9,14 @@ import {
 } from '@/entities/post'
 import type { Tag } from '@/entities/tag'
 import { formatDateTime } from '@/shared/lib'
-import { Badge, Button, Card, CardContent, PageHeader } from '@/shared/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DescriptionList,
+  PageHeader,
+} from '@/shared/ui'
 
 export function PostShow() {
   const { list, edit } = useNavigation()
@@ -43,44 +50,60 @@ export function PostShow() {
           {query.isLoading ? (
             <p className="text-muted-foreground text-sm">불러오는 중…</p>
           ) : record ? (
-            <dl className="grid grid-cols-[8rem_1fr] gap-y-3 text-sm">
-              <dt className="text-muted-foreground">ID</dt>
-              <dd>{record.id}</dd>
-              <dt className="text-muted-foreground">제목</dt>
-              <dd>{record.title}</dd>
-              <dt className="text-muted-foreground">슬러그</dt>
-              <dd>{record.slug}</dd>
-              <dt className="text-muted-foreground">상태</dt>
-              <dd>
-                <Badge variant={POST_STATUS_VARIANT[record.status]}>
-                  {POST_STATUS_LABEL[record.status]}
-                </Badge>
-              </dd>
-              <dt className="text-muted-foreground">카테고리</dt>
-              <dd>{category?.name ?? '—'}</dd>
-              <dt className="text-muted-foreground">태그</dt>
-              <dd className="flex flex-wrap gap-1">
-                {tagData?.data.length ? (
-                  tagData.data.map((tag) => (
-                    <Badge key={tag.id} variant="outline">
-                      {tag.name}
+            <DescriptionList
+              items={[
+                { label: 'ID', value: record.id },
+                { label: '제목', value: record.title },
+                { label: '슬러그', value: record.slug },
+                {
+                  label: '상태',
+                  value: (
+                    <Badge variant={POST_STATUS_VARIANT[record.status]}>
+                      {POST_STATUS_LABEL[record.status]}
                     </Badge>
-                  ))
-                ) : (
-                  <span>—</span>
-                )}
-              </dd>
-              <dt className="text-muted-foreground">요약</dt>
-              <dd className="whitespace-pre-wrap">{record.excerpt || '—'}</dd>
-              <dt className="text-muted-foreground">본문</dt>
-              <dd className="whitespace-pre-wrap">{record.content}</dd>
-              <dt className="text-muted-foreground">발행일</dt>
-              <dd>{record.publishedAt ? formatDateTime(record.publishedAt) : '—'}</dd>
-              <dt className="text-muted-foreground">생성일</dt>
-              <dd>{formatDateTime(record.createdAt)}</dd>
-              <dt className="text-muted-foreground">수정일</dt>
-              <dd>{formatDateTime(record.updatedAt)}</dd>
-            </dl>
+                  ),
+                },
+                { label: '카테고리', value: category?.name ?? '—' },
+                {
+                  label: '태그',
+                  value: (
+                    <div className="flex flex-wrap gap-1">
+                      {tagData?.data.length ? (
+                        tagData.data.map((tag) => (
+                          <Badge key={tag.id} variant="outline">
+                            {tag.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  label: '요약',
+                  value: (
+                    <span className="whitespace-pre-wrap">
+                      {record.excerpt || '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: '본문',
+                  value: (
+                    <span className="whitespace-pre-wrap">{record.content}</span>
+                  ),
+                },
+                {
+                  label: '발행일',
+                  value: record.publishedAt
+                    ? formatDateTime(record.publishedAt)
+                    : '—',
+                },
+                { label: '생성일', value: formatDateTime(record.createdAt) },
+                { label: '수정일', value: formatDateTime(record.updatedAt) },
+              ]}
+            />
           ) : (
             <p className="text-muted-foreground text-sm">데이터가 없습니다.</p>
           )}
