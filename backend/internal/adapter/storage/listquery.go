@@ -39,9 +39,10 @@ func buildListClauses(q port.ListQuery, filterCols, sortCols fieldMap, defaultOr
 			conds = append(conds, col+" <> ?")
 			c.whereArgs = append(c.whereArgs, f.Value)
 		case port.OpLike:
-			// 대소문자 무시 부분 일치 (sqlite/postgres 공통)
-			conds = append(conds, "LOWER("+col+") LIKE LOWER(?)")
-			c.whereArgs = append(c.whereArgs, "%"+toString(f.Value)+"%")
+			// 대소문자 무시 부분 일치 (sqlite/postgres 공통).
+			// 사용자 입력의 LIKE 와일드카드(%,_)와 이스케이프 문자(\)를 이스케이프해 와일드카드 주입 차단.
+			conds = append(conds, "LOWER("+col+") LIKE LOWER(?) ESCAPE '\\'")
+			c.whereArgs = append(c.whereArgs, "%"+escapeLike(toString(f.Value))+"%")
 		case port.OpGt:
 			conds = append(conds, col+" > ?")
 			c.whereArgs = append(c.whereArgs, f.Value)
@@ -93,4 +94,13 @@ func toString(v any) string {
 		return s
 	}
 	return ""
+}
+
+// escapeLike 는 LIKE 패턴의 특수문자(\ % _)를 ESCAPE '\' 기준으로 이스케이프한다.
+// 백슬래시를 먼저 처리해야 이중 이스케이프를 피한다.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, "%", `\%`)
+	s = strings.ReplaceAll(s, "_", `\_`)
+	return s
 }

@@ -27,9 +27,11 @@ func (h *TagHandler) register(rg *gin.RouterGroup) {
 }
 
 func (h *TagHandler) list(c *gin.Context) {
-	q := baseQuery(c)
-	strFilter(c, &q, "name_like", "name", port.OpLike)
-
+	q, err := newListQuery(c).like("name_like", "name").build()
+	if err != nil {
+		respondBadRequest(c, err)
+		return
+	}
 	items, total, err := h.svc.Query(c.Request.Context(), q)
 	if err != nil {
 		respondError(c, err)

@@ -28,11 +28,11 @@ func (h *PostHandler) register(rg *gin.RouterGroup) {
 }
 
 func (h *PostHandler) list(c *gin.Context) {
-	q := baseQuery(c)
-	strFilter(c, &q, "title_like", "title", port.OpLike)
-	strFilter(c, &q, "status", "status", port.OpEq)
-	intFilter(c, &q, "categoryId", "categoryId")
-
+	q, err := newListQuery(c).like("title_like", "title").eqStr("status", "status").eqInt("categoryId", "categoryId").build()
+	if err != nil {
+		respondBadRequest(c, err)
+		return
+	}
 	items, total, err := h.svc.Query(c.Request.Context(), q)
 	if err != nil {
 		respondError(c, err)
@@ -113,8 +113,13 @@ func (h *PostHandler) update(c *gin.Context) {
 	p.apply("status", &in.Status)
 	p.apply("categoryId", &in.CategoryID) // null → 카테고리 해제
 	if p.has("tagIds") {
-		in.TagIDs = []uint{} // 키가 있으면 교체(빈 배열은 전체 해제)
+		// 키가 있으면 교체(빈 배열·null 은 전체 해제). apply 가 null 을 nil 로 만들 수 있으므로
+		// 다시 빈 슬라이스로 보정해 서비스가 '변경 없음(nil)'으로 오인하지 않게 한다.
+		in.TagIDs = []uint{}
 		p.apply("tagIds", &in.TagIDs)
+		if in.TagIDs == nil {
+			in.TagIDs = []uint{}
+		}
 	}
 	if p.err != nil {
 		respondBadRequest(c, p.err)

@@ -10,7 +10,8 @@ import (
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
 )
 
-// PostHandler 는 게시글 HTTP 엔드포인트를 담당한다.
+// PostHandler 는 공개 게시글 조회(읽기 전용) 엔드포인트를 담당한다.
+// 생성/수정/삭제 등 관리는 관리자 API(/admin/api/v1)에서만 제공한다.
 type PostHandler struct {
 	svc port.PostService
 }
@@ -21,33 +22,8 @@ func NewPostHandler(svc port.PostService) *PostHandler {
 
 func (h *PostHandler) register(rg *gin.RouterGroup) {
 	g := rg.Group("/posts")
-	g.POST("", h.create)
 	g.GET("", h.list)
 	g.GET("/:id", h.get)
-	g.PUT("/:id", h.update)
-	g.DELETE("/:id", h.delete)
-}
-
-func (h *PostHandler) create(c *gin.Context) {
-	var req createPostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err)
-		return
-	}
-	out, err := h.svc.Create(c.Request.Context(), port.CreatePostInput{
-		Title:      req.Title,
-		Slug:       req.Slug,
-		Excerpt:    req.Excerpt,
-		Content:    req.Content,
-		Status:     domain.PostStatus(req.Status),
-		CategoryID: req.CategoryID,
-		TagIDs:     req.TagIDs,
-	})
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, newPostResponse(out))
 }
 
 func (h *PostHandler) list(c *gin.Context) {
@@ -86,42 +62,4 @@ func (h *PostHandler) get(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, newPostResponse(out))
-}
-
-func (h *PostHandler) update(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var req updatePostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err)
-		return
-	}
-	out, err := h.svc.Update(c.Request.Context(), id, port.UpdatePostInput{
-		Title:      req.Title,
-		Slug:       req.Slug,
-		Excerpt:    req.Excerpt,
-		Content:    req.Content,
-		Status:     domain.PostStatus(req.Status),
-		CategoryID: req.CategoryID,
-		TagIDs:     req.TagIDs,
-	})
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, newPostResponse(out))
-}
-
-func (h *PostHandler) delete(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		respondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
 }

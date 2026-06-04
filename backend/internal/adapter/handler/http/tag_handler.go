@@ -8,7 +8,8 @@ import (
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
 )
 
-// TagHandler 는 태그 HTTP 엔드포인트를 담당한다.
+// TagHandler 는 공개 태그 조회(읽기 전용) 엔드포인트를 담당한다.
+// 생성/수정/삭제 등 관리는 관리자 API(/admin/api/v1)에서만 제공한다.
 type TagHandler struct {
 	svc port.TagService
 }
@@ -19,25 +20,8 @@ func NewTagHandler(svc port.TagService) *TagHandler {
 
 func (h *TagHandler) register(rg *gin.RouterGroup) {
 	g := rg.Group("/tags")
-	g.POST("", h.create)
 	g.GET("", h.list)
 	g.GET("/:id", h.get)
-	g.PUT("/:id", h.update)
-	g.DELETE("/:id", h.delete)
-}
-
-func (h *TagHandler) create(c *gin.Context) {
-	var req createTagRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err)
-		return
-	}
-	out, err := h.svc.Create(c.Request.Context(), port.CreateTagInput{Name: req.Name, Slug: req.Slug})
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, newTagResponse(out))
 }
 
 func (h *TagHandler) list(c *gin.Context) {
@@ -64,34 +48,4 @@ func (h *TagHandler) get(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, newTagResponse(out))
-}
-
-func (h *TagHandler) update(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var req updateTagRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err)
-		return
-	}
-	out, err := h.svc.Update(c.Request.Context(), id, port.UpdateTagInput{Name: req.Name, Slug: req.Slug})
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, newTagResponse(out))
-}
-
-func (h *TagHandler) delete(c *gin.Context) {
-	id, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		respondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
 }

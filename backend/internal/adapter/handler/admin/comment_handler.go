@@ -28,11 +28,11 @@ func (h *CommentHandler) register(rg *gin.RouterGroup) {
 }
 
 func (h *CommentHandler) list(c *gin.Context) {
-	q := baseQuery(c)
-	intFilter(c, &q, "postId", "postId")
-	strFilter(c, &q, "status", "status", port.OpEq)
-	strFilter(c, &q, "authorName_like", "authorName", port.OpLike)
-
+	q, err := newListQuery(c).eqInt("postId", "postId").eqStr("status", "status").like("authorName_like", "authorName").build()
+	if err != nil {
+		respondBadRequest(c, err)
+		return
+	}
 	items, total, err := h.svc.Query(c.Request.Context(), q)
 	if err != nil {
 		respondError(c, err)

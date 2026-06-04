@@ -7,50 +7,8 @@ import (
 )
 
 // ---- 요청 DTO ----
-
-type createCategoryRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Slug        string `json:"slug" binding:"required"`
-	Description string `json:"description"`
-	ParentID    *uint  `json:"parent_id"`
-}
-
-type updateCategoryRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Slug        string `json:"slug" binding:"required"`
-	Description string `json:"description"`
-	ParentID    *uint  `json:"parent_id"`
-}
-
-type createTagRequest struct {
-	Name string `json:"name" binding:"required"`
-	Slug string `json:"slug" binding:"required"`
-}
-
-type updateTagRequest struct {
-	Name string `json:"name" binding:"required"`
-	Slug string `json:"slug" binding:"required"`
-}
-
-type createPostRequest struct {
-	Title      string `json:"title" binding:"required"`
-	Slug       string `json:"slug" binding:"required"`
-	Excerpt    string `json:"excerpt"`
-	Content    string `json:"content"`
-	Status     string `json:"status"`
-	CategoryID *uint  `json:"category_id"`
-	TagIDs     []uint `json:"tag_ids"`
-}
-
-type updatePostRequest struct {
-	Title      string `json:"title" binding:"required"`
-	Slug       string `json:"slug" binding:"required"`
-	Excerpt    string `json:"excerpt"`
-	Content    string `json:"content"`
-	Status     string `json:"status"`
-	CategoryID *uint  `json:"category_id"`
-	TagIDs     []uint `json:"tag_ids"`
-}
+// 공개 API 는 posts/categories/tags 에 대해 읽기 전용이므로 쓰기 요청 DTO 가 없다.
+// 생성/수정 요청은 관리자 API(adapter/handler/admin)에 있다.
 
 // createCommentRequest: 로그인 회원 작성. 작성자(author)는 토큰에서 유도하므로 클라이언트는 보내지 않는다.
 type createCommentRequest struct {

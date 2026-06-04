@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -49,8 +50,11 @@ func main() {
 	ctx := context.Background()
 
 	emailNorm := strings.ToLower(strings.TrimSpace(*email))
-	if _, err := repo.GetByEmail(ctx, emailNorm); err == nil {
+	switch _, err := repo.GetByEmail(ctx, emailNorm); {
+	case err == nil:
 		fatalf("이미 존재하는 이메일입니다: %s", emailNorm)
+	case !errors.Is(err, domain.ErrNotFound):
+		fatalf("이메일 조회 실패: %v", err) // not-found 외의 실제 DB 오류는 삼키지 않는다
 	}
 
 	hash, err := hasher.Hash(*password)

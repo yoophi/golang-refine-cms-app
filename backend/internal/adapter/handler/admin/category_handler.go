@@ -27,10 +27,11 @@ func (h *CategoryHandler) register(rg *gin.RouterGroup) {
 }
 
 func (h *CategoryHandler) list(c *gin.Context) {
-	q := baseQuery(c)
-	strFilter(c, &q, "name_like", "name", port.OpLike)
-	intFilter(c, &q, "parentId", "parentId")
-
+	q, err := newListQuery(c).like("name_like", "name").eqInt("parentId", "parentId").build()
+	if err != nil {
+		respondBadRequest(c, err)
+		return
+	}
 	items, total, err := h.svc.Query(c.Request.Context(), q)
 	if err != nil {
 		respondError(c, err)
