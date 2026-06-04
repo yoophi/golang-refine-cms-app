@@ -54,7 +54,7 @@ func Load() *Config {
 			SQLitePath: getEnv("SQLITE_PATH", "cms.db"),
 		},
 		Admin: AdminConfig{
-			CORSOrigins:  splitCSV(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://localhost:9000,http://localhost:3000")),
+			CORSOrigins:  splitCSV(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:9000,http://localhost:3000")),
 			JWTSecret:    getEnv("JWT_SECRET", devJWTSecret),
 			AccessTTL:    time.Duration(getEnvInt("JWT_ACCESS_TTL_MIN", 60)) * time.Minute,
 			RefreshTTL:   time.Duration(getEnvInt("JWT_REFRESH_TTL_HOURS", 168)) * time.Hour,
