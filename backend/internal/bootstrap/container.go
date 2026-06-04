@@ -26,6 +26,11 @@ type dbHandle struct {
 	Driver string
 }
 
+// newJWTManager 는 동일 시크릿/TTL 로 audience 만 다른 토큰 매니저를 만든다(admin/user 분리).
+func newJWTManager(c *config.Config, audience string) *security.JWTManager {
+	return security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, audience)
+}
+
 // NewInjector 는 samber/do 컨테이너를 구성한다.
 // 의존성은 어댑터 -> 서비스 -> 포트 -> 도메인 순으로 안쪽을 향해 주입된다.
 func NewInjector(cfg *config.Config) *do.Injector {
@@ -108,8 +113,7 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		), nil
 	})
 	do.Provide(i, func(in *do.Injector) (port.AuthService, error) {
-		c := do.MustInvoke[*config.Config](in)
-		tokens := security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, security.AudienceAdmin)
+		tokens := newJWTManager(do.MustInvoke[*config.Config](in), security.AudienceAdmin)
 		return service.NewAuthService(
 			do.MustInvoke[port.AdminUserRepository](in),
 			tokens,
@@ -117,8 +121,7 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		), nil
 	})
 	do.Provide(i, func(in *do.Injector) (port.UserAuthService, error) {
-		c := do.MustInvoke[*config.Config](in)
-		tokens := security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, security.AudienceUser)
+		tokens := newJWTManager(do.MustInvoke[*config.Config](in), security.AudienceUser)
 		return service.NewUserAuthService(
 			do.MustInvoke[port.UserRepository](in),
 			tokens,

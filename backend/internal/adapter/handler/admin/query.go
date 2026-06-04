@@ -38,10 +38,7 @@ func parseSort(c *gin.Context) []port.SortField {
 		if f == "" {
 			continue
 		}
-		desc := false
-		if i < len(orders) && strings.EqualFold(strings.TrimSpace(orders[i]), "desc") {
-			desc = true
-		}
+		desc := i < len(orders) && strings.EqualFold(strings.TrimSpace(orders[i]), "desc")
 		sorts = append(sorts, port.SortField{Field: f, Desc: desc})
 	}
 	return sorts

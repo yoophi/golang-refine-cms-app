@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 
 	"github.com/yoophi/refine-cms/backend/internal/core/domain"
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
@@ -20,7 +19,7 @@ func NewAuthService(repo port.AdminUserRepository, tokens port.TokenManager, has
 }
 
 func (s *authService) Login(ctx context.Context, email, password string) (*port.LoginResult, error) {
-	email = strings.TrimSpace(strings.ToLower(email))
+	email = normalizeEmail(email)
 	if email == "" || password == "" {
 		return nil, domain.ErrUnauthorized
 	}
