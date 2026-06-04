@@ -1,17 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
-import { useAuthStore } from '@/entities/user'
+import { useAuthStore, useLogout } from '@/entities/user'
 import { Button } from '@/shared/ui'
 
 export function Header() {
-  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const clear = useAuthStore((s) => s.clear)
-
-  const onLogout = () => {
-    clear()
-    navigate('/')
-  }
+  const onLogout = useLogout()
 
   return (
     <header className="border-b">

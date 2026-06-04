@@ -1,8 +1,12 @@
 import { type FormEvent, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 
-import { updateMe, useAuthStore, type UpdateProfileInput } from '@/entities/user'
+import {
+  updateMe,
+  useAuthStore,
+  useLogout,
+  type UpdateProfileInput,
+} from '@/entities/user'
 import {
   Button,
   Card,
@@ -14,10 +18,9 @@ import {
 } from '@/shared/ui'
 
 export function ProfilePage() {
-  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
-  const clear = useAuthStore((s) => s.clear)
+  const onLogout = useLogout()
 
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
@@ -41,11 +44,6 @@ export function ProfilePage() {
       input.currentPassword = currentPassword
     }
     mutation.mutate(input)
-  }
-
-  const onLogout = () => {
-    clear()
-    navigate('/')
   }
 
   return (
