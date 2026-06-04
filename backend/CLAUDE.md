@@ -72,41 +72,16 @@ flowchart LR
 
 ## 6. 에러 처리 (가장 중요)
 
-사내 `pos-connector` 컨벤션과 Dave Cheney 의 "Don't just check errors, handle them gracefully" 가이드라인을 따른다.
-핵심 원칙: **에러는 값이다 / 맥락을 덧붙여 전파한다 / 딱 한 번만 처리한다(로그와 응답을 중복하지 않는다).**
+> 정식 기준은 **[`../docs/error-handling.md`](../docs/error-handling.md)** (저장소 루트 `docs/`). 아래는 핵심 요약이며, 상세·코드 예시·근거는 문서를 따른다.
 
-### 6.1 에러의 생성과 전파
+핵심 원칙: **에러는 값이다 / 맥락을 덧붙여 전파한다 / 딱 한 번만 처리한다(로그·응답 중복 금지).** (pos-connector 컨벤션 + Dave Cheney 가이드라인)
 
-- **도메인 에러는 `domain.ConstantError` sentinel** (`core/domain/errors.go`). 식별은 항상 `errors.Is` 로 한다. 타입 단언/`Error()` 문자열 비교 금지.
-- **래핑은 `github.com/pkg/errors`** 의 `errors.Wrap(err, "작업명")` / `errors.Wrapf(...)` 로 한다. 표준 `%w` 대신 pkg/errors 로 통일(pos-connector 와 동일). `errors.Is/As` 는 pkg/errors 가 재노출하므로 같은 패키지에서 그대로 쓴다.
-- **맥락은 발생 지점(주로 리포지토리)에서 한 번만** 덧붙인다. 서비스는 리포지토리 에러를 **그대로 전파**한다(중복 래핑 금지 → `"수정: 수정: ..."` 방지). 서비스가 새로 만드는 검증 에러만 `domain.ErrInvalidInput` 등을 직접 반환한다.
-- **로그하면서 동시에 return 하지 않는다.** 하위 레이어(service/storage)는 절대 로깅하지 않고 에러를 반환만 한다. 로깅은 최상단(ginzap)에서 한 번 일어난다.
-
-### 6.2 HTTP 응답 파이프라인 (핸들러는 응답을 직접 만들지 않는다)
-
-```mermaid
-flowchart LR
-    H["핸들러<br/>respondError(c, err)<br/>respondBadRequest(c, err)"] -->|c.Error 로 등록| MW["ErrorHandle 미들웨어<br/>errors.As(*GinError)<br/>→ AbortWithStatusJSON"]
-    H -. 성공 시에만 .-> OK["c.JSON(리소스)"]
-    MW --> RESP["Response 봉투<br/>{code,status,message,detail}"]
-```
-
-- 핸들러는 에러를 **등록만** 한다: 도메인 에러는 `respondError(c, err)`, 바인딩/파싱 등 입력 오류는 `respondBadRequest(c, err)`. 호출 직후 `return`. **핸들러에서 `c.JSON` 으로 에러를 직접 쓰지 않는다**(성공 응답에만 `c.JSON` 사용).
-- `respondError` → `fromDomain(err)` 가 `errors.Is` 로 도메인 sentinel 을 `ErrorCode` 로 매핑한다. **새 도메인 에러를 추가하면 `ginerror.go` 의 `fromDomain` 과 `ErrorCode`(+`StatusCode()`/`Message()`)도 갱신**한다.
-- 실제 HTTP 응답 생성은 **오직 `ErrorHandle` 미들웨어 한 곳**에서 일어난다(`middleware.go`). HTTP 상태코드 매핑은 **`ErrorCode.StatusCode()` 한 곳**에 집중한다.
-- 에러 응답 봉투는 `Response{code, status, message, detail}`. `message` 는 사용자 노출용 안전 문구, `detail` 은 4xx 에 한해 디버깅용 원본 문자열. **500(`ErrInternal`)에는 `detail` 을 넣지 않는다**(내부/SQL 상세 유출 방지).
-- 경로 파라미터 정수 파싱은 `parseIDParam(c, "id")`.
-- 성공 응답 컨벤션: 목록은 `{"data": [...]}`, 단건은 리소스 객체 직접 반환. (성공 응답까지 `Response` 봉투로 통일하려면 별도 결정 후 일괄 적용.)
-
-### 6.3 로깅 / panic
-
-- 미들웨어 순서는 `Ginzap → RecoveryWithZap → ErrorHandle` 로 등록한다. 후처리는 역순이라 ErrorHandle 이 응답을 만든 뒤 Ginzap 이 최종 상태/에러를 로깅한다(응답=ErrorHandle, 로깅=Ginzap 으로 분리).
-- panic 복구는 `ginzap.RecoveryWithZap` 을 그대로 쓴다(커스텀 recover 만들지 않음).
-- 참고: 현재 ginzap 기본 설정은 4xx 클라이언트 오류도 error 레벨 + stacktrace 로 남긴다. 로그 노이즈가 문제되면 상태코드별 레벨을 조정하는 커스텀 로깅 미들웨어 도입을 검토한다.
-
-### 6.4 요청 검증 2단계
-
-1차는 핸들러에서 gin `binding` 태그(`required` 등) → 실패 시 `respondBadRequest`. 2차(비즈니스 규칙)는 서비스에서 `domain.ErrInvalidInput` 반환.
+- **분류**: 도메인 에러는 `domain.ConstantError` sentinel(`core/domain/errors.go`), 식별은 항상 `errors.Is`. 타입 단언/`Error()` 문자열 비교 금지.
+- **래핑**: `github.com/pkg/errors` 의 `errors.Wrap(err, "작업명")` 으로 **발생 지점(주로 리포지토리)에서 한 번만** 맥락 부여. 서비스는 하위 에러를 **그대로 전파**(중복 래핑 금지), 자신이 만드는 검증 에러만 `domain.ErrInvalidInput` 직접 반환.
+- **HTTP**: 핸들러는 응답을 직접 만들지 않는다 — 도메인 에러는 `respondError(c, err)`, 입력 오류는 `respondBadRequest(c, err)` 로 **등록만** 하고 `return`(성공만 `c.JSON`). 변환은 `ErrorHandle` 미들웨어 한 곳, 상태 매핑은 `ErrorCode.StatusCode()` 한 곳. 새 도메인 에러 추가 시 `ginerror.go` 의 `fromDomain`/`ErrorCode` 갱신.
+- **응답 봉투**: `Response{code, status, message, detail}`. `detail` 은 4xx 만, **500 엔 미포함**(내부 상세 유출 방지).
+- **로깅**: 하위 레이어는 로깅하지 않는다(반환만). 로깅은 최상단 ginzap 1회. 미들웨어 순서 `Ginzap → RecoveryWithZap → ErrorHandle`.
+- **검증 2단계**: 1차 gin `binding` 태그 → `respondBadRequest`, 2차 비즈니스 규칙 → 서비스에서 `domain.ErrInvalidInput`.
 
 ## 7. 의존성 버전 정책
 
