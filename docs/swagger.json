@@ -9,12 +9,80 @@
     { "url": "http://localhost:9000/admin/api/v1", "description": "로컬 개발 서버 (관리자 API)" }
   ],
   "tags": [
+    { "name": "auth", "description": "관리자 인증" },
     { "name": "posts", "description": "게시글" },
     { "name": "categories", "description": "카테고리(자기참조 트리)" },
     { "name": "tags", "description": "태그" },
     { "name": "comments", "description": "댓글(스레드)" }
   ],
+  "security": [{ "bearerAuth": [] }],
   "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "관리자 로그인",
+        "description": "이메일/비밀번호로 로그인하고 JWT 액세스 토큰과 신원을 반환한다. 인증 불필요.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "로그인 성공",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "401": {
+            "description": "이메일 또는 비밀번호 불일치",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "현재 관리자 신원 조회",
+        "description": "액세스 토큰에 해당하는 관리자 신원(역할·권한 포함)을 반환한다.",
+        "responses": {
+          "200": {
+            "description": "관리자 신원",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdminUser" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "액세스 토큰 갱신",
+        "description": "리프레시 토큰으로 새 액세스 토큰을 발급한다. 액세스 토큰 인증 불필요(리프레시 토큰으로 검증).",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "갱신된 토큰",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "로그아웃",
+        "description": "서버 측 토큰 무효화(선택). 클라이언트는 응답과 무관하게 로컬 토큰을 폐기한다.",
+        "responses": {
+          "200": { "description": "로그아웃 성공", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
     "/posts": {
       "get": {
         "tags": ["posts"],
@@ -250,6 +318,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "관리자 로그인으로 발급된 JWT 액세스 토큰. `Authorization: Bearer <accessToken>` 헤더로 전달."
+      }
+    },
     "parameters": {
       "idPath": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "리소스 ID" },
       "start": { "name": "_start", "in": "query", "schema": { "type": "integer", "minimum": 0 }, "description": "페이지네이션 시작 offset(포함). 예: 0" },
@@ -262,7 +338,8 @@
     },
     "responses": {
       "BadRequest": { "description": "잘못된 요청", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
-      "NotFound": { "description": "리소스를 찾을 수 없음", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+      "NotFound": { "description": "리소스를 찾을 수 없음", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "인증 실패(토큰 누락·만료·무효). 대시보드는 로그아웃 후 /login으로 이동.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
       "Post": {
@@ -368,6 +445,57 @@
       "Error": {
         "type": "object",
         "properties": { "message": { "type": "string" } }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "admin@example.com" },
+          "password": { "type": "string", "format": "password", "example": "secret" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["accessToken", "user"],
+        "properties": {
+          "accessToken": { "type": "string", "description": "JWT 액세스 토큰" },
+          "refreshToken": { "type": "string", "description": "리프레시 토큰(선택)" },
+          "user": { "$ref": "#/components/schemas/AdminUser" }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": ["refreshToken"],
+        "properties": { "refreshToken": { "type": "string" } }
+      },
+      "RefreshResponse": {
+        "type": "object",
+        "required": ["accessToken"],
+        "properties": {
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string", "description": "회전된 리프레시 토큰(선택)" }
+        }
+      },
+      "AdminUser": {
+        "type": "object",
+        "required": ["id", "name", "email", "role", "permissions"],
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "관리자" },
+          "email": { "type": "string", "format": "email", "example": "admin@example.com" },
+          "role": {
+            "type": "string",
+            "description": "관리자 역할. 'superadmin'은 모든 권한을 가진다.",
+            "example": "editor"
+          },
+          "permissions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "`resource:action` 형식 권한 문자열 목록. action ∈ list|show|create|edit|delete",
+            "example": ["posts:list", "posts:show", "posts:create", "posts:edit", "comments:list", "comments:edit"]
+          },
+          "avatar": { "type": "string", "description": "아바타 이미지 URL(선택)" }
+        }
       }
     }
   }

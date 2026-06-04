@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigation } from '@refinedev/core'
+import { CanAccess, useNavigation } from '@refinedev/core'
 import { useTable } from '@refinedev/react-table'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -40,9 +40,11 @@ export function TagList() {
   return (
     <div>
       <PageHeader title="태그" description="게시글에 붙일 태그를 관리합니다.">
-        <Button onClick={() => create('tags')}>
-          <Plus className="size-4" /> 태그 생성
-        </Button>
+        <CanAccess resource="tags" action="create">
+          <Button onClick={() => create('tags')}>
+            <Plus className="size-4" /> 태그 생성
+          </Button>
+        </CanAccess>
       </PageHeader>
       <DataTable table={reactTable} columnCount={columns.length} />
     </div>

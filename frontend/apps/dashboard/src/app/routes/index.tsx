@@ -1,5 +1,6 @@
+import { Authenticated } from '@refinedev/core'
+import { CatchAllNavigate, NavigateToResource } from '@refinedev/react-router'
 import { Outlet, Route, Routes } from 'react-router'
-import { NavigateToResource } from '@refinedev/react-router'
 
 import {
   CategoryCreate,
@@ -10,6 +11,7 @@ import {
   CommentEdit,
   CommentList,
   CommentShow,
+  LoginPage,
   NotFound,
   PostCreate,
   PostEdit,
@@ -27,9 +29,14 @@ export function AppRoutes() {
     <Routes>
       <Route
         element={
-          <Layout>
-            <Outlet />
-          </Layout>
+          <Authenticated
+            key="authenticated-routes"
+            fallback={<CatchAllNavigate to="/login" />}
+          >
+            <Layout>
+              <Outlet />
+            </Layout>
+          </Authenticated>
         }
       >
         <Route index element={<NavigateToResource resource="posts" />} />
@@ -63,6 +70,16 @@ export function AppRoutes() {
         </Route>
 
         <Route path="*" element={<NotFound />} />
+      </Route>
+
+      <Route
+        element={
+          <Authenticated key="auth-pages" fallback={<Outlet />}>
+            <NavigateToResource resource="posts" />
+          </Authenticated>
+        }
+      >
+        <Route path="/login" element={<LoginPage />} />
       </Route>
     </Routes>
   )

@@ -19,6 +19,7 @@
     "@refinedev/react-table": "^6.0.1",
     "@refinedev/simple-rest": "^6.0.1",
     "@tanstack/react-table": "^8.21.3",
+    "axios": "^1.17.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",

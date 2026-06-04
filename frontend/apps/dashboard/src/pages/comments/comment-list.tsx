@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useMany, useNavigation } from '@refinedev/core'
+import { CanAccess, useMany, useNavigation } from '@refinedev/core'
 import { useTable } from '@refinedev/react-table'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -96,9 +96,11 @@ export function CommentList() {
   return (
     <div>
       <PageHeader title="댓글" description="게시글에 달린 댓글을 관리합니다.">
-        <Button onClick={() => create('comments')}>
-          <Plus className="size-4" /> 댓글 작성
-        </Button>
+        <CanAccess resource="comments" action="create">
+          <Button onClick={() => create('comments')}>
+            <Plus className="size-4" /> 댓글 작성
+          </Button>
+        </CanAccess>
       </PageHeader>
       <DataTable table={reactTable} columnCount={columns.length} />
     </div>

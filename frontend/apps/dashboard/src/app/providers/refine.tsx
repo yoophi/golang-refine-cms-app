@@ -4,6 +4,9 @@ import routerProvider from '@refinedev/react-router'
 import dataProvider from '@refinedev/simple-rest'
 import { FileText, Folder, MessageSquare, Tags } from 'lucide-react'
 
+import { accessControlProvider } from '@/shared/api/access-control-provider'
+import { authProvider } from '@/shared/api/auth-provider'
+import { httpClient } from '@/shared/api/http-client'
 import { notificationProvider } from '@/shared/api/notification-provider'
 import { API_URL } from '@/shared/config/api'
 
@@ -45,8 +48,10 @@ export const resources: ResourceProps[] = [
 export function AppRefineProvider({ children }: PropsWithChildren) {
   return (
     <Refine
-      dataProvider={dataProvider(API_URL)}
+      dataProvider={dataProvider(API_URL, httpClient)}
       routerProvider={routerProvider}
+      authProvider={authProvider}
+      accessControlProvider={accessControlProvider}
       notificationProvider={notificationProvider}
       resources={resources}
       options={{

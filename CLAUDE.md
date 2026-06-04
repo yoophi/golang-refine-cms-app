@@ -10,7 +10,7 @@
 │   ├── package.json          # 워크스페이스 루트
 │   └── apps/
 │       └── dashboard/        # 어드민 대시보드 (refine)
-└── docs/                     # 관리자 API 명세 (swagger.json, api.md) — BE 전달용
+└── docs/                     # 관리자 API 명세 (swagger.json, api.md, admin-auth.md) — BE 전달용
 ```
 
 > 백엔드 코드 작업 시에는 `backend/CLAUDE.md`(헥사고날 레이어 규칙)를 우선 따른다.
@@ -55,6 +55,12 @@ flowchart TB
   - 목록 응답은 배열 + `X-Total-Count` 헤더 필수, 수정은 `PATCH`, 필드 네이밍 camelCase, CORS에서 해당 헤더 expose 필요.
 - 라우팅: `@refinedev/react-router` + `react-router` v7.
 - 테이블: `@refinedev/react-table` + `@tanstack/react-table`. 폼: `@refinedev/react-hook-form` + `react-hook-form`.
+
+### 인증 / 권한 (ACL)
+- **인증**: refine `authProvider` + JWT Bearer. 로그인 `POST /admin/api/v1/auth/login` → 토큰·신원을 localStorage 저장, `httpClient`(axios) 인터셉터로 `Authorization: Bearer` 주입. 401/403 → 로그아웃 후 `/login`.
+- **권한**: refine `accessControlProvider`(RBAC). 신원의 `permissions: ["resource:action"]`로 판단, `role === 'superadmin'`은 전체 허용. 메뉴·생성 버튼·행 액션은 `CanAccess`로 게이팅.
+- 보호 라우트는 `Authenticated`로 감싸고 `/login`은 공개. 구현: `shared/api/{auth-provider,access-control-provider,http-client,session}.ts`, `entities/auth`, `pages/login`.
+- **UI 게이팅은 편의일 뿐 — 권한은 BE에서 반드시 강제**한다(`docs/admin-auth.md` 참조).
 
 ### 리소스 / 도메인 모델 (BE 도메인과 일치)
 - `posts`: title, slug, excerpt, content, status, categoryId(nullable), tagIds(M:N), publishedAt(nullable)

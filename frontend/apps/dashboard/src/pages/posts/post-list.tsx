@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useMany, useNavigation } from '@refinedev/core'
+import { CanAccess, useMany, useNavigation } from '@refinedev/core'
 import { useTable } from '@refinedev/react-table'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -119,9 +119,11 @@ export function PostList() {
   return (
     <div>
       <PageHeader title="게시글" description="블로그 게시글을 관리합니다.">
-        <Button onClick={() => create('posts')}>
-          <Plus className="size-4" /> 게시글 작성
-        </Button>
+        <CanAccess resource="posts" action="create">
+          <Button onClick={() => create('posts')}>
+            <Plus className="size-4" /> 게시글 작성
+          </Button>
+        </CanAccess>
       </PageHeader>
       <DataTable table={reactTable} columnCount={columns.length} />
     </div>

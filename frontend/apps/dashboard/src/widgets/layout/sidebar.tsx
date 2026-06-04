@@ -1,4 +1,4 @@
-import { useMenu } from '@refinedev/core'
+import { CanAccess, useMenu } from '@refinedev/core'
 import { Link } from 'react-router'
 import { LayoutDashboard } from 'lucide-react'
 
@@ -17,19 +17,20 @@ export function Sidebar() {
         {menuItems.map((item) => {
           const active = item.key === selectedKey
           return (
-            <Link
-              key={item.key}
-              to={item.route ?? '/'}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                active
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
-              )}
-            >
-              {item.icon}
-              <span>{item.label ?? item.name}</span>
-            </Link>
+            <CanAccess key={item.key} resource={item.name} action="list">
+              <Link
+                to={item.route ?? '/'}
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+                )}
+              >
+                {item.icon}
+                <span>{item.label ?? item.name}</span>
+              </Link>
+            </CanAccess>
           )
         })}
       </nav>

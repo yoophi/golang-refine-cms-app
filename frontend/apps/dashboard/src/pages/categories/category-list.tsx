@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigation } from '@refinedev/core'
+import { CanAccess, useNavigation } from '@refinedev/core'
 import { useTable } from '@refinedev/react-table'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -40,9 +40,11 @@ export function CategoryList() {
   return (
     <div>
       <PageHeader title="카테고리" description="게시글 분류 카테고리를 관리합니다.">
-        <Button onClick={() => create('categories')}>
-          <Plus className="size-4" /> 카테고리 생성
-        </Button>
+        <CanAccess resource="categories" action="create">
+          <Button onClick={() => create('categories')}>
+            <Plus className="size-4" /> 카테고리 생성
+          </Button>
+        </CanAccess>
       </PageHeader>
       <DataTable table={reactTable} columnCount={columns.length} />
     </div>
