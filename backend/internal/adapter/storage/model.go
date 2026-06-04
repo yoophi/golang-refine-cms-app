@@ -80,6 +80,7 @@ type commentRow struct {
 	ID          uint      `db:"id"`
 	PostID      uint      `db:"post_id"`
 	ParentID    *uint     `db:"parent_id"`
+	UserID      *uint     `db:"user_id"`
 	AuthorName  string    `db:"author_name"`
 	AuthorEmail string    `db:"author_email"`
 	Content     string    `db:"content"`
@@ -93,6 +94,7 @@ func (r commentRow) toDomain() domain.Comment {
 		ID:          r.ID,
 		PostID:      r.PostID,
 		ParentID:    r.ParentID,
+		UserID:      r.UserID,
 		AuthorName:  r.AuthorName,
 		AuthorEmail: r.AuthorEmail,
 		Content:     r.Content,

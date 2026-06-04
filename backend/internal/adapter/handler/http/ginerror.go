@@ -17,6 +17,8 @@ const (
 	ErrNotFound
 	ErrBadParamInput
 	ErrConflict
+	ErrUnauthorized
+	ErrForbidden
 )
 
 // StatusCode 는 ErrorCode 를 HTTP 상태 코드로 변환한다. (상태 매핑은 이 한 곳에 집중)
@@ -28,6 +30,10 @@ func (c ErrorCode) StatusCode() int {
 		return http.StatusBadRequest
 	case ErrConflict:
 		return http.StatusConflict
+	case ErrUnauthorized:
+		return http.StatusUnauthorized
+	case ErrForbidden:
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}
@@ -42,6 +48,10 @@ func (c ErrorCode) Message() string {
 		return "입력값이 올바르지 않습니다"
 	case ErrConflict:
 		return "리소스가 이미 존재합니다"
+	case ErrUnauthorized:
+		return "인증이 필요합니다"
+	case ErrForbidden:
+		return "권한이 없습니다"
 	default:
 		return "내부 서버 오류"
 	}
@@ -75,6 +85,10 @@ func wrapGinError(err error, code ErrorCode) *GinError {
 // 알 수 없는 에러는 ErrInternal(500)로 처리한다.
 func fromDomain(err error) *GinError {
 	switch {
+	case errors.Is(err, domain.ErrUnauthorized):
+		return wrapGinError(err, ErrUnauthorized)
+	case errors.Is(err, domain.ErrForbidden):
+		return wrapGinError(err, ErrForbidden)
 	case errors.Is(err, domain.ErrNotFound):
 		return wrapGinError(err, ErrNotFound)
 	case errors.Is(err, domain.ErrConflict):

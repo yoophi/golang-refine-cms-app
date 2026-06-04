@@ -1,6 +1,7 @@
 package security
 
 import (
+	"slices"
 	"strconv"
 	"time"
 
@@ -11,102 +12,99 @@ import (
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
 )
 
+// 토큰 audience: 회원 토큰과 관리자 토큰을 분리해 상호 접근을 차단한다(동일 시크릿).
+const (
+	AudienceAdmin = "admin"
+	AudienceUser  = "user"
+)
+
+const (
+	typeAccess  = "access"
+	typeRefresh = "refresh"
+)
+
 // JWTManager 는 port.TokenManager 의 golang-jwt/v4(HS256) 구현이다.
+// audience 로 토큰 용도(admin/user)를 구분하고, typ 로 access/refresh 를 구분한다.
 type JWTManager struct {
 	secret     []byte
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	audience   string
 }
 
 var _ port.TokenManager = (*JWTManager)(nil)
 
-func NewJWTManager(secret string, accessTTL, refreshTTL time.Duration) *JWTManager {
-	return &JWTManager{secret: []byte(secret), accessTTL: accessTTL, refreshTTL: refreshTTL}
+func NewJWTManager(secret string, accessTTL, refreshTTL time.Duration, audience string) *JWTManager {
+	return &JWTManager{secret: []byte(secret), accessTTL: accessTTL, refreshTTL: refreshTTL, audience: audience}
 }
 
-// accessClaims 는 액세스 토큰 페이로드이다. sub=관리자 id.
-type accessClaims struct {
-	Role  string `json:"role"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
+type claims struct {
+	Role string `json:"role,omitempty"`
+	Typ  string `json:"typ"`
 	jwt.RegisteredClaims
 }
 
-// refreshClaims 는 리프레시 토큰 페이로드이다(typ 으로 액세스와 구분).
-type refreshClaims struct {
-	Typ string `json:"typ"`
-	jwt.RegisteredClaims
-}
-
-func (m *JWTManager) Issue(u *domain.AdminUser) (string, string, error) {
+func (m *JWTManager) Issue(subject uint, role string) (string, string, error) {
 	now := time.Now()
-	sub := strconv.FormatUint(uint64(u.ID), 10)
+	sub := strconv.FormatUint(uint64(subject), 10)
+	aud := jwt.ClaimStrings{m.audience}
 
-	access := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims{
-		Role:  string(u.Role),
-		Email: u.Email,
-		Name:  u.Name,
+	access, err := m.sign(claims{
+		Role: role,
+		Typ:  typeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   sub,
+			Audience:  aud,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
 		},
 	})
-	accessStr, err := access.SignedString(m.secret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "액세스 토큰 서명")
 	}
-
-	refresh := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims{
-		Typ: "refresh",
+	refresh, err := m.sign(claims{
+		Typ: typeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   sub,
+			Audience:  aud,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.refreshTTL)),
 		},
 	})
-	refreshStr, err := refresh.SignedString(m.secret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "리프레시 토큰 서명")
 	}
-	return accessStr, refreshStr, nil
+	return access, refresh, nil
 }
 
-func (m *JWTManager) ParseAccess(token string) (*port.AdminClaims, error) {
-	var claims accessClaims
-	if _, err := m.parse(token, &claims); err != nil {
-		return nil, err
-	}
-	id, err := strconv.ParseUint(claims.Subject, 10, 64)
+func (m *JWTManager) ParseAccess(token string) (uint, string, error) {
+	c, err := m.parse(token, typeAccess)
 	if err != nil {
-		return nil, domain.ErrUnauthorized
+		return 0, "", err
 	}
-	return &port.AdminClaims{
-		UserID: uint(id),
-		Email:  claims.Email,
-		Name:   claims.Name,
-		Role:   domain.Role(claims.Role),
-	}, nil
+	id, err := subjectID(c)
+	if err != nil {
+		return 0, "", err
+	}
+	return id, c.Role, nil
 }
 
 func (m *JWTManager) ParseRefresh(token string) (uint, error) {
-	var claims refreshClaims
-	if _, err := m.parse(token, &claims); err != nil {
+	c, err := m.parse(token, typeRefresh)
+	if err != nil {
 		return 0, err
 	}
-	if claims.Typ != "refresh" {
-		return 0, domain.ErrUnauthorized
-	}
-	id, err := strconv.ParseUint(claims.Subject, 10, 64)
-	if err != nil {
-		return 0, domain.ErrUnauthorized
-	}
-	return uint(id), nil
+	return subjectID(c)
 }
 
-// parse 는 서명/만료를 검증한다. 어떤 실패든 domain.ErrUnauthorized 로 일원화한다.
-func (m *JWTManager) parse(token string, claims jwt.Claims) (*jwt.Token, error) {
-	t, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
+func (m *JWTManager) sign(c claims) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString(m.secret)
+}
+
+// parse 는 서명/만료 + typ + audience 를 검증한다. 어떤 실패든 domain.ErrUnauthorized 로 일원화.
+func (m *JWTManager) parse(token, wantTyp string) (*claims, error) {
+	var c claims
+	t, err := jwt.ParseWithClaims(token, &c, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, domain.ErrUnauthorized
 		}
@@ -115,5 +113,19 @@ func (m *JWTManager) parse(token string, claims jwt.Claims) (*jwt.Token, error) 
 	if err != nil || !t.Valid {
 		return nil, domain.ErrUnauthorized
 	}
-	return t, nil
+	if c.Typ != wantTyp {
+		return nil, domain.ErrUnauthorized // access/refresh 혼용 차단
+	}
+	if !slices.Contains(c.Audience, m.audience) {
+		return nil, domain.ErrUnauthorized // user/admin 토큰 상호 사용 차단
+	}
+	return &c, nil
+}
+
+func subjectID(c *claims) (uint, error) {
+	id, err := strconv.ParseUint(c.Subject, 10, 64)
+	if err != nil {
+		return 0, domain.ErrUnauthorized
+	}
+	return uint(id), nil
 }

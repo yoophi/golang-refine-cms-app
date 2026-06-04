@@ -26,10 +26,10 @@ func NewCommentRepository(db *sqlx.DB, driver string) *CommentRepository {
 func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error {
 	now := time.Now()
 	c.CreatedAt, c.UpdatedAt = now, now
-	const q = `INSERT INTO comments (post_id, parent_id, author_name, author_email, content, status, created_at, updated_at)
-	           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	const q = `INSERT INTO comments (post_id, parent_id, user_id, author_name, author_email, content, status, created_at, updated_at)
+	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	id, err := insertReturningID(ctx, r.db, r.driver, q,
-		c.PostID, c.ParentID, c.AuthorName, c.AuthorEmail, c.Content, string(c.Status), c.CreatedAt, c.UpdatedAt)
+		c.PostID, c.ParentID, c.UserID, c.AuthorName, c.AuthorEmail, c.Content, string(c.Status), c.CreatedAt, c.UpdatedAt)
 	if err != nil {
 		return errors.Wrap(err, "댓글 생성")
 	}
@@ -39,7 +39,7 @@ func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error
 
 func (r *CommentRepository) GetByID(ctx context.Context, id uint) (*domain.Comment, error) {
 	var row commentRow
-	const q = `SELECT id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at
+	const q = `SELECT id, post_id, parent_id, user_id, author_name, author_email, content, status, created_at, updated_at
 	           FROM comments WHERE id = ?`
 	if err := r.db.GetContext(ctx, &row, r.db.Rebind(q), id); err != nil {
 		return nil, errors.Wrap(mapError(err), "댓글 조회")
@@ -50,7 +50,7 @@ func (r *CommentRepository) GetByID(ctx context.Context, id uint) (*domain.Comme
 
 func (r *CommentRepository) ListByPost(ctx context.Context, postID uint) ([]domain.Comment, error) {
 	var rows []commentRow
-	const q = `SELECT id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at
+	const q = `SELECT id, post_id, parent_id, user_id, author_name, author_email, content, status, created_at, updated_at
 	           FROM comments WHERE post_id = ? ORDER BY id`
 	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), postID); err != nil {
 		return nil, errors.Wrap(mapError(err), "댓글 목록 조회")
@@ -75,7 +75,7 @@ func (r *CommentRepository) Query(ctx context.Context, q port.ListQuery) ([]doma
 		return nil, 0, errors.Wrap(mapError(err), "댓글 개수 조회")
 	}
 
-	const cols = "id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at"
+	const cols = "id, post_id, parent_id, user_id, author_name, author_email, content, status, created_at, updated_at"
 	args := append(append([]any{}, cl.whereArgs...), cl.limitArgs...)
 	var rows []commentRow
 	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind("SELECT "+cols+" FROM comments"+cl.where+cl.order+cl.limit), args...); err != nil {

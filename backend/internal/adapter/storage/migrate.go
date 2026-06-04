@@ -49,10 +49,21 @@ CREATE TABLE IF NOT EXISTS post_tags (
     PRIMARY KEY (post_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT NOT NULL UNIQUE,
+    name          TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    avatar        TEXT NOT NULL DEFAULT '',
+    created_at    DATETIME NOT NULL,
+    updated_at    DATETIME NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS comments (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     post_id      INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     parent_id    INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+    user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
     author_name  TEXT NOT NULL,
     author_email TEXT NOT NULL DEFAULT '',
     content      TEXT NOT NULL,
@@ -62,6 +73,7 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 
 CREATE TABLE IF NOT EXISTS admin_users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,10 +127,21 @@ CREATE TABLE IF NOT EXISTS post_tags (
     PRIMARY KEY (post_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id            BIGSERIAL PRIMARY KEY,
+    email         VARCHAR(190) NOT NULL UNIQUE,
+    name          VARCHAR(120) NOT NULL,
+    password_hash VARCHAR(200) NOT NULL,
+    avatar        VARCHAR(500) NOT NULL DEFAULT '',
+    created_at    TIMESTAMPTZ NOT NULL,
+    updated_at    TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS comments (
     id           BIGSERIAL PRIMARY KEY,
     post_id      BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     parent_id    BIGINT REFERENCES comments(id) ON DELETE CASCADE,
+    user_id      BIGINT REFERENCES users(id) ON DELETE SET NULL,
     author_name  VARCHAR(120) NOT NULL,
     author_email VARCHAR(160) NOT NULL DEFAULT '',
     content      TEXT NOT NULL,
@@ -128,6 +151,7 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 
 CREATE TABLE IF NOT EXISTS admin_users (
     id            BIGSERIAL PRIMARY KEY,
@@ -150,5 +174,27 @@ func Migrate(db *sqlx.DB, driver string) error {
 	if _, err := db.Exec(schema); err != nil {
 		return errors.Wrap(err, "스키마 마이그레이션 실패")
 	}
+	// 기존(레거시) comments 테이블에 user_id 컬럼을 멱등하게 추가한다.
+	if err := ensureCommentUserID(db, driver); err != nil {
+		return errors.Wrap(err, "comments.user_id 마이그레이션 실패")
+	}
 	return nil
+}
+
+// ensureCommentUserID 는 comments.user_id 컬럼이 없으면 추가한다(이미 있으면 무시).
+func ensureCommentUserID(db *sqlx.DB, driver string) error {
+	if driver == DriverPostgres {
+		_, err := db.Exec(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`)
+		return err
+	}
+	// sqlite: 컬럼 존재 여부를 pragma 로 확인 후 추가(ADD COLUMN IF NOT EXISTS 미지원).
+	var cnt int
+	if err := db.Get(&cnt, `SELECT COUNT(*) FROM pragma_table_info('comments') WHERE name = 'user_id'`); err != nil {
+		return err
+	}
+	if cnt > 0 {
+		return nil
+	}
+	_, err := db.Exec(`ALTER TABLE comments ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`)
+	return err
 }

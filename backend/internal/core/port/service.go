@@ -92,6 +92,7 @@ type PostService interface {
 type CreateCommentInput struct {
 	PostID      uint
 	ParentID    *uint
+	UserID      *uint // 로그인 회원 작성 시 회원 ID(소유권). 익명/관리자 작성은 nil
 	AuthorName  string
 	AuthorEmail string
 	Content     string
@@ -110,4 +111,8 @@ type CommentService interface {
 	Query(ctx context.Context, q ListQuery) ([]domain.Comment, int, error)
 	Update(ctx context.Context, id uint, in UpdateCommentInput) (*domain.Comment, error)
 	Delete(ctx context.Context, id uint) error
+	// UpdateOwnedContent 는 ownerID 가 댓글 소유자(user_id)일 때만 content 를 수정한다(아니면 ErrForbidden).
+	UpdateOwnedContent(ctx context.Context, id, ownerID uint, content string) (*domain.Comment, error)
+	// DeleteOwned 는 ownerID 가 댓글 소유자일 때만 삭제한다(아니면 ErrForbidden).
+	DeleteOwned(ctx context.Context, id, ownerID uint) error
 }

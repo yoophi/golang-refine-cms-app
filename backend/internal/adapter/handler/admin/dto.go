@@ -93,6 +93,7 @@ type commentResponse struct {
 	ID          uint      `json:"id"`
 	PostID      uint      `json:"postId"`
 	ParentID    *uint     `json:"parentId"`
+	UserID      *uint     `json:"userId"`
 	AuthorName  string    `json:"authorName"`
 	AuthorEmail string    `json:"authorEmail"`
 	Content     string    `json:"content"`
@@ -106,6 +107,7 @@ func newCommentResponse(c *domain.Comment) commentResponse {
 		ID:          c.ID,
 		PostID:      c.PostID,
 		ParentID:    c.ParentID,
+		UserID:      c.UserID,
 		AuthorName:  c.AuthorName,
 		AuthorEmail: c.AuthorEmail,
 		Content:     c.Content,

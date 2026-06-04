@@ -29,8 +29,10 @@ func CORS(origins []string) gin.HandlerFunc {
 	return cors.New(cfg)
 }
 
+// containsWildcard 는 명시적 '*' 가 있을 때만 전체 허용한다.
+// 빈 목록은 전체 허용이 아니라 '교차 출처 차단'(fail-closed)으로 둔다.
 func containsWildcard(origins []string) bool {
-	return len(origins) == 0 || slices.Contains(origins, "*")
+	return slices.Contains(origins, "*")
 }
 
 // Authenticate 는 Bearer 액세스 토큰을 검증하고 관리자 신원을 컨텍스트에 저장한다.

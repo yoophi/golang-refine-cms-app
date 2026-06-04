@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -61,6 +62,20 @@ func Load() *Config {
 			SeedPassword: getEnv("ADMIN_SEED_PASSWORD", "secret"),
 		},
 	}
+}
+
+// Validate 는 운영 환경에서 위험한 기본값 사용을 막는다(기동 전 호출).
+func (c *Config) Validate() error {
+	if c.AppEnv != "production" {
+		return nil
+	}
+	if c.Admin.JWTSecret == "" || c.Admin.JWTSecret == devJWTSecret {
+		return errors.New("운영 환경에서는 JWT_SECRET 를 안전한 무작위 값으로 설정해야 합니다")
+	}
+	if c.Admin.AccessTTL <= 0 || c.Admin.RefreshTTL <= 0 {
+		return errors.New("JWT 토큰 만료(JWT_ACCESS_TTL_MIN/JWT_REFRESH_TTL_HOURS)는 양수여야 합니다")
+	}
+	return nil
 }
 
 func getEnvInt(key string, fallback int) int {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,10 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintln(os.Stderr, "설정 오류:", err)
+		os.Exit(1)
+	}
 
 	injector := bootstrap.NewInjector(cfg)
 

@@ -26,6 +26,7 @@ type Comment struct {
 	ID          uint
 	PostID      uint
 	ParentID    *uint
+	UserID      *uint // 작성 회원 ID. 익명/레거시/관리자 작성은 nil
 	AuthorName  string
 	AuthorEmail string
 	Content     string

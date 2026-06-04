@@ -38,6 +38,7 @@ func (s *commentService) Create(ctx context.Context, in port.CreateCommentInput)
 	c := &domain.Comment{
 		PostID:      in.PostID,
 		ParentID:    in.ParentID,
+		UserID:      in.UserID,
 		AuthorName:  in.AuthorName,
 		AuthorEmail: in.AuthorEmail,
 		Content:     in.Content,
@@ -85,5 +86,39 @@ func (s *commentService) Update(ctx context.Context, id uint, in port.UpdateComm
 }
 
 func (s *commentService) Delete(ctx context.Context, id uint) error {
+	return s.repo.Delete(ctx, id)
+}
+
+// ownedComment 는 댓글을 조회하고 ownerID 소유 여부를 확인한다.
+func (s *commentService) ownedComment(ctx context.Context, id, ownerID uint) (*domain.Comment, error) {
+	c, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if c.UserID == nil || *c.UserID != ownerID {
+		return nil, domain.ErrForbidden
+	}
+	return c, nil
+}
+
+func (s *commentService) UpdateOwnedContent(ctx context.Context, id, ownerID uint, content string) (*domain.Comment, error) {
+	if strings.TrimSpace(content) == "" {
+		return nil, domain.ErrInvalidInput
+	}
+	c, err := s.ownedComment(ctx, id, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	c.Content = content // 상태(status)는 회원이 변경할 수 없다(관리자 전용)
+	if err := s.repo.Update(ctx, c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func (s *commentService) DeleteOwned(ctx context.Context, id, ownerID uint) error {
+	if _, err := s.ownedComment(ctx, id, ownerID); err != nil {
+		return err
+	}
 	return s.repo.Delete(ctx, id)
 }

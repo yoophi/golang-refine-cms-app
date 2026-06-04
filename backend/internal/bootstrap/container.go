@@ -54,11 +54,9 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		return &dbHandle{DB: db, Driver: driver}, nil
 	})
 
-	// --- 인프라: 보안(JWT/비밀번호 해시) ---
-	do.Provide(i, func(in *do.Injector) (port.TokenManager, error) {
-		c := do.MustInvoke[*config.Config](in)
-		return security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL), nil
-	})
+	// --- 인프라: 비밀번호 해시 ---
+	// TokenManager 는 audience(admin/user)별로 분리해야 하므로 공용 provider 로 두지 않고
+	// 각 인증 서비스 provider 에서 직접 생성한다(동일 시크릿, 다른 audience).
 	do.Provide(i, func(in *do.Injector) (port.PasswordHasher, error) {
 		return security.NewBcryptHasher(), nil
 	})
@@ -88,6 +86,10 @@ func NewInjector(cfg *config.Config) *do.Injector {
 	do.Provide(i, func(in *do.Injector) (port.AdminUserRepository, error) {
 		return do.MustInvoke[*storage.AdminUserRepository](in), nil
 	})
+	do.Provide(i, func(in *do.Injector) (port.UserRepository, error) {
+		h := do.MustInvoke[*dbHandle](in)
+		return storage.NewUserRepository(h.DB, h.Driver), nil
+	})
 
 	// --- 코어: 서비스(입력 포트 구현) ---
 	do.Provide(i, func(in *do.Injector) (port.CategoryService, error) {
@@ -106,9 +108,20 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		), nil
 	})
 	do.Provide(i, func(in *do.Injector) (port.AuthService, error) {
+		c := do.MustInvoke[*config.Config](in)
+		tokens := security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, security.AudienceAdmin)
 		return service.NewAuthService(
 			do.MustInvoke[port.AdminUserRepository](in),
-			do.MustInvoke[port.TokenManager](in),
+			tokens,
+			do.MustInvoke[port.PasswordHasher](in),
+		), nil
+	})
+	do.Provide(i, func(in *do.Injector) (port.UserAuthService, error) {
+		c := do.MustInvoke[*config.Config](in)
+		tokens := security.NewJWTManager(c.Admin.JWTSecret, c.Admin.AccessTTL, c.Admin.RefreshTTL, security.AudienceUser)
+		return service.NewUserAuthService(
+			do.MustInvoke[port.UserRepository](in),
+			tokens,
 			do.MustInvoke[port.PasswordHasher](in),
 		), nil
 	})
@@ -125,6 +138,9 @@ func NewInjector(cfg *config.Config) *do.Injector {
 	})
 	do.Provide(i, func(in *do.Injector) (*httpadapter.CommentHandler, error) {
 		return httpadapter.NewCommentHandler(do.MustInvoke[port.CommentService](in)), nil
+	})
+	do.Provide(i, func(in *do.Injector) (*httpadapter.UserAuthHandler, error) {
+		return httpadapter.NewUserAuthHandler(do.MustInvoke[port.UserAuthService](in)), nil
 	})
 
 	// --- 인바운드 어댑터: 관리자(admin) HTTP 핸들러 ---
@@ -149,19 +165,24 @@ func NewInjector(cfg *config.Config) *do.Injector {
 		c := do.MustInvoke[*config.Config](in)
 		logger := do.MustInvoke[*zap.Logger](in)
 
-		// 개발용 기본 관리자 시드(admin_users 가 비어있을 때만).
-		seeded, err := storage.SeedDefaultAdmins(
-			context.Background(),
-			do.MustInvoke[*storage.AdminUserRepository](in),
-			do.MustInvoke[port.PasswordHasher](in),
-			c.Admin.SeedPassword,
-		)
-		if err != nil {
-			return nil, err
-		}
-		if seeded {
-			logger.Warn("기본 관리자 계정 시드됨(개발용) — 운영 전 비밀번호/계정 교체 필요",
-				zap.String("accounts", "admin@example.com / editor@example.com / viewer@example.com"))
+		// 개발용 기본 관리자 시드(admin_users 가 비어있을 때만). 운영에서는 알려진 기본 계정 생성을
+		// 막기 위해 자동 시드를 비활성화한다(계정은 cmd/adminuser 로 명시 생성).
+		if c.AppEnv == "production" {
+			logger.Info("운영 환경: 기본 관리자 자동 시드 비활성화 (cmd/adminuser 로 계정 생성)")
+		} else {
+			seeded, err := storage.SeedDefaultAdmins(
+				context.Background(),
+				do.MustInvoke[*storage.AdminUserRepository](in),
+				do.MustInvoke[port.PasswordHasher](in),
+				c.Admin.SeedPassword,
+			)
+			if err != nil {
+				return nil, err
+			}
+			if seeded {
+				logger.Warn("기본 관리자 계정 시드됨(개발용) — 운영 전 비밀번호/계정 교체 필요",
+					zap.String("accounts", "admin@example.com / editor@example.com / viewer@example.com"))
+			}
 		}
 
 		if c.AppEnv == "production" {
@@ -178,13 +199,14 @@ func NewInjector(cfg *config.Config) *do.Injector {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
-		// 사용자(public) API: /api/v1
+		// 사용자(public) API: /api/v1 (회원 인증 + 댓글 소유권)
 		httpadapter.RegisterRoutes(r.Group("/api/v1"), httpadapter.Handlers{
 			Category: do.MustInvoke[*httpadapter.CategoryHandler](in),
 			Tag:      do.MustInvoke[*httpadapter.TagHandler](in),
 			Post:     do.MustInvoke[*httpadapter.PostHandler](in),
 			Comment:  do.MustInvoke[*httpadapter.CommentHandler](in),
-		})
+			UserAuth: do.MustInvoke[*httpadapter.UserAuthHandler](in),
+		}, do.MustInvoke[port.UserAuthService](in))
 
 		// 관리자 API: /admin/api/v1 (인증 + ACL)
 		adminhttp.RegisterRoutes(

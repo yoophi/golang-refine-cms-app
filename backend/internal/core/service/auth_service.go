@@ -37,12 +37,12 @@ func (s *authService) Login(ctx context.Context, email, password string) (*port.
 }
 
 func (s *authService) Identity(ctx context.Context, accessToken string) (*domain.AdminUser, error) {
-	claims, err := s.tokens.ParseAccess(accessToken)
+	id, _, err := s.tokens.ParseAccess(accessToken)
 	if err != nil {
 		return nil, err
 	}
-	// 토큰이 유효해도 계정이 삭제/변경됐을 수 있으므로 최신 상태를 조회한다.
-	u, err := s.repo.GetByID(ctx, claims.UserID)
+	// 토큰이 유효해도 계정이 삭제/변경됐을 수 있으므로 최신 상태를 조회한다(role 도 DB 기준).
+	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, domain.ErrUnauthorized
 	}
@@ -62,7 +62,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*port.L
 }
 
 func (s *authService) issue(u *domain.AdminUser) (*port.LoginResult, error) {
-	access, refresh, err := s.tokens.Issue(u)
+	access, refresh, err := s.tokens.Issue(u.ID, string(u.Role))
 	if err != nil {
 		return nil, err
 	}

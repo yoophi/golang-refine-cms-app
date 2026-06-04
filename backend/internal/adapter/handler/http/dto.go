@@ -52,17 +52,16 @@ type updatePostRequest struct {
 	TagIDs     []uint `json:"tag_ids"`
 }
 
+// createCommentRequest: 로그인 회원 작성. 작성자(author)는 토큰에서 유도하므로 클라이언트는 보내지 않는다.
 type createCommentRequest struct {
-	PostID      uint   `json:"post_id" binding:"required"`
-	ParentID    *uint  `json:"parent_id"`
-	AuthorName  string `json:"author_name" binding:"required"`
-	AuthorEmail string `json:"author_email"`
-	Content     string `json:"content" binding:"required"`
+	PostID   uint   `json:"post_id" binding:"required"`
+	ParentID *uint  `json:"parent_id"`
+	Content  string `json:"content" binding:"required"`
 }
 
+// updateCommentRequest: 본인 댓글 내용 수정(상태는 관리자 전용).
 type updateCommentRequest struct {
 	Content string `json:"content" binding:"required"`
-	Status  string `json:"status"`
 }
 
 // ---- 응답 DTO + 매핑 ----
@@ -145,6 +144,7 @@ type commentResponse struct {
 	ID          uint      `json:"id"`
 	PostID      uint      `json:"post_id"`
 	ParentID    *uint     `json:"parent_id"`
+	UserID      *uint     `json:"user_id"`
 	AuthorName  string    `json:"author_name"`
 	AuthorEmail string    `json:"author_email"`
 	Content     string    `json:"content"`
@@ -158,6 +158,7 @@ func newCommentResponse(c *domain.Comment) commentResponse {
 		ID:          c.ID,
 		PostID:      c.PostID,
 		ParentID:    c.ParentID,
+		UserID:      c.UserID,
 		AuthorName:  c.AuthorName,
 		AuthorEmail: c.AuthorEmail,
 		Content:     c.Content,
