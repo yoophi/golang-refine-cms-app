@@ -29,6 +29,8 @@ type CategoryService interface {
 	Create(ctx context.Context, in CreateCategoryInput) (*domain.Category, error)
 	Get(ctx context.Context, id uint) (*domain.Category, error)
 	List(ctx context.Context) ([]domain.Category, error)
+	// Query 는 필터/정렬/페이지네이션 목록과 전체 개수를 반환한다(관리자 API 용).
+	Query(ctx context.Context, q ListQuery) ([]domain.Category, int, error)
 	Update(ctx context.Context, id uint, in UpdateCategoryInput) (*domain.Category, error)
 	Delete(ctx context.Context, id uint) error
 }
@@ -49,6 +51,7 @@ type TagService interface {
 	Create(ctx context.Context, in CreateTagInput) (*domain.Tag, error)
 	Get(ctx context.Context, id uint) (*domain.Tag, error)
 	List(ctx context.Context) ([]domain.Tag, error)
+	Query(ctx context.Context, q ListQuery) ([]domain.Tag, int, error)
 	Update(ctx context.Context, id uint, in UpdateTagInput) (*domain.Tag, error)
 	Delete(ctx context.Context, id uint) error
 }
@@ -79,6 +82,7 @@ type PostService interface {
 	Create(ctx context.Context, in CreatePostInput) (*domain.Post, error)
 	Get(ctx context.Context, id uint) (*domain.Post, error)
 	List(ctx context.Context, f PostFilter) ([]domain.Post, error)
+	Query(ctx context.Context, q ListQuery) ([]domain.Post, int, error)
 	Update(ctx context.Context, id uint, in UpdatePostInput) (*domain.Post, error)
 	Delete(ctx context.Context, id uint) error
 }
@@ -91,6 +95,7 @@ type CreateCommentInput struct {
 	AuthorName  string
 	AuthorEmail string
 	Content     string
+	Status      domain.CommentStatus // 비어있으면 pending 으로 처리
 }
 
 type UpdateCommentInput struct {
@@ -102,6 +107,7 @@ type CommentService interface {
 	Create(ctx context.Context, in CreateCommentInput) (*domain.Comment, error)
 	Get(ctx context.Context, id uint) (*domain.Comment, error)
 	ListByPost(ctx context.Context, postID uint) ([]domain.Comment, error)
+	Query(ctx context.Context, q ListQuery) ([]domain.Comment, int, error)
 	Update(ctx context.Context, id uint, in UpdateCommentInput) (*domain.Comment, error)
 	Delete(ctx context.Context, id uint) error
 }

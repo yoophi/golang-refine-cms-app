@@ -1,15 +1,10 @@
 package http
 
 import (
-	"net/http"
-	"time"
-
-	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
-// Handlers 는 라우터 구성에 필요한 모든 핸들러를 모은다.
+// Handlers 는 사용자(public) API 라우트 구성에 필요한 핸들러를 모은다.
 type Handlers struct {
 	Category *CategoryHandler
 	Tag      *TagHandler
@@ -17,25 +12,13 @@ type Handlers struct {
 	Comment  *CommentHandler
 }
 
-// NewRouter 는 미들웨어와 모든 라우트가 구성된 gin 엔진을 생성한다.
-func NewRouter(logger *zap.Logger, h Handlers) *gin.Engine {
-	r := gin.New()
-	// 미들웨어 후처리는 등록 역순으로 실행된다:
-	// ErrorHandle 이 c.Errors 를 HTTP 응답으로 변환한 뒤, Ginzap 이 최종 상태/에러를 로깅한다.
-	// (응답 생성=ErrorHandle, 로깅=Ginzap 으로 책임을 분리해 에러를 한 번만 처리)
-	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
-	r.Use(ginzap.RecoveryWithZap(logger, true))
-	r.Use(ErrorHandle())
-
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	api := r.Group("/api/v1")
-	h.Category.register(api)
-	h.Tag.register(api)
-	h.Post.register(api)
-	h.Comment.register(api)
-
-	return r
+// RegisterRoutes 는 주어진 라우터 그룹(예: /api/v1)에 사용자 API 라우트를 등록한다.
+// 에러 응답 변환(ErrorHandle)은 이 그룹 범위에만 적용된다(관리자 API 와 분리).
+// 엔진/전역 미들웨어(로깅·복구·CORS)는 bootstrap 에서 구성한다.
+func RegisterRoutes(rg *gin.RouterGroup, h Handlers) {
+	rg.Use(ErrorHandle())
+	h.Category.register(rg)
+	h.Tag.register(rg)
+	h.Post.register(rg)
+	h.Comment.register(rg)
 }

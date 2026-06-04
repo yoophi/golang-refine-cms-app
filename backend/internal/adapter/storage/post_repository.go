@@ -112,6 +112,47 @@ func (r *PostRepository) List(ctx context.Context, f port.PostFilter) ([]domain.
 	return out, nil
 }
 
+var (
+	postFilterCols = fieldMap{"title": "title", "status": "status", "categoryId": "category_id"}
+	postSortCols   = fieldMap{"id": "id", "title": "title", "slug": "slug", "status": "status", "categoryId": "category_id", "publishedAt": "published_at", "createdAt": "created_at", "updatedAt": "updated_at"}
+)
+
+func (r *PostRepository) Query(ctx context.Context, q port.ListQuery) ([]domain.Post, int, error) {
+	cl := buildListClauses(q, postFilterCols, postSortCols, "id ASC")
+
+	var total int
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind("SELECT COUNT(*) FROM posts"+cl.where), cl.whereArgs...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "게시글 개수 조회")
+	}
+
+	const cols = "id, title, slug, excerpt, content, status, category_id, published_at, created_at, updated_at"
+	args := append(append([]any{}, cl.whereArgs...), cl.limitArgs...)
+	var rows []postRow
+	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind("SELECT "+cols+" FROM posts"+cl.where+cl.order+cl.limit), args...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "게시글 목록 조회")
+	}
+	if len(rows) == 0 {
+		return []domain.Post{}, total, nil
+	}
+
+	ids := make([]uint, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	tagsByPost, err := r.loadTags(ctx, ids)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "게시글 목록 조회: 태그 로드")
+	}
+
+	out := make([]domain.Post, 0, len(rows))
+	for _, row := range rows {
+		p := row.toDomain()
+		p.Tags = tagsByPost[row.ID]
+		out = append(out, p)
+	}
+	return out, total, nil
+}
+
 func (r *PostRepository) Update(ctx context.Context, p *domain.Post, tagIDs []uint) error {
 	p.UpdatedAt = time.Now()
 

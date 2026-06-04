@@ -44,6 +44,14 @@ func (f *fakeCategoryRepo) List(_ context.Context) ([]domain.Category, error) {
 	return out, nil
 }
 
+func (f *fakeCategoryRepo) Query(_ context.Context, _ port.ListQuery) ([]domain.Category, int, error) {
+	out := make([]domain.Category, 0, len(f.items))
+	for _, c := range f.items {
+		out = append(out, *c)
+	}
+	return out, len(out), nil
+}
+
 func (f *fakeCategoryRepo) Update(_ context.Context, c *domain.Category) error {
 	if _, ok := f.items[c.ID]; !ok {
 		return domain.ErrNotFound

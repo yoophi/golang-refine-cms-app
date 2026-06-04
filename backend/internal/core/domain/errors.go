@@ -18,4 +18,8 @@ const (
 	ErrConflict = ConstantError("리소스가 이미 존재합니다")
 	// ErrInvalidInput 은 입력값 검증에 실패했을 때.
 	ErrInvalidInput = ConstantError("입력값이 올바르지 않습니다")
+	// ErrUnauthorized 는 인증 실패(토큰 누락·만료·무효, 자격 증명 불일치)일 때.
+	ErrUnauthorized = ConstantError("인증에 실패했습니다")
+	// ErrForbidden 은 인증은 됐으나 권한이 부족할 때.
+	ErrForbidden = ConstantError("권한이 없습니다")
 )

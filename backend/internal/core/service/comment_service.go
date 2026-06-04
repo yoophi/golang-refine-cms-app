@@ -28,13 +28,20 @@ func (s *commentService) Create(ctx context.Context, in port.CreateCommentInput)
 		return nil, err
 	}
 
+	status := in.Status
+	if status == "" {
+		status = domain.CommentStatusPending
+	}
+	if !status.Valid() {
+		return nil, domain.ErrInvalidInput
+	}
 	c := &domain.Comment{
 		PostID:      in.PostID,
 		ParentID:    in.ParentID,
 		AuthorName:  in.AuthorName,
 		AuthorEmail: in.AuthorEmail,
 		Content:     in.Content,
-		Status:      domain.CommentStatusPending,
+		Status:      status,
 	}
 	if err := s.repo.Create(ctx, c); err != nil {
 		return nil, err
@@ -48,6 +55,10 @@ func (s *commentService) Get(ctx context.Context, id uint) (*domain.Comment, err
 
 func (s *commentService) ListByPost(ctx context.Context, postID uint) ([]domain.Comment, error) {
 	return s.repo.ListByPost(ctx, postID)
+}
+
+func (s *commentService) Query(ctx context.Context, q port.ListQuery) ([]domain.Comment, int, error) {
+	return s.repo.Query(ctx, q)
 }
 
 func (s *commentService) Update(ctx context.Context, id uint, in port.UpdateCommentInput) (*domain.Comment, error) {

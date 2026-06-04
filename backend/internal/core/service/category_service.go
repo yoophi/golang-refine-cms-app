@@ -41,6 +41,10 @@ func (s *categoryService) List(ctx context.Context) ([]domain.Category, error) {
 	return s.repo.List(ctx)
 }
 
+func (s *categoryService) Query(ctx context.Context, q port.ListQuery) ([]domain.Category, int, error) {
+	return s.repo.Query(ctx, q)
+}
+
 func (s *categoryService) Update(ctx context.Context, id uint, in port.UpdateCategoryInput) (*domain.Category, error) {
 	c, err := s.repo.GetByID(ctx, id)
 	if err != nil {

@@ -63,6 +63,32 @@ func (r *CategoryRepository) List(ctx context.Context) ([]domain.Category, error
 	return out, nil
 }
 
+var (
+	categoryFilterCols = fieldMap{"name": "name", "parentId": "parent_id"}
+	categorySortCols   = fieldMap{"id": "id", "name": "name", "slug": "slug", "parentId": "parent_id", "createdAt": "created_at", "updatedAt": "updated_at"}
+)
+
+func (r *CategoryRepository) Query(ctx context.Context, q port.ListQuery) ([]domain.Category, int, error) {
+	cl := buildListClauses(q, categoryFilterCols, categorySortCols, "id ASC")
+
+	var total int
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind("SELECT COUNT(*) FROM categories"+cl.where), cl.whereArgs...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "카테고리 개수 조회")
+	}
+
+	const cols = "id, name, slug, description, parent_id, created_at, updated_at"
+	args := append(append([]any{}, cl.whereArgs...), cl.limitArgs...)
+	var rows []categoryRow
+	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind("SELECT "+cols+" FROM categories"+cl.where+cl.order+cl.limit), args...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "카테고리 목록 조회")
+	}
+	out := make([]domain.Category, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.toDomain())
+	}
+	return out, total, nil
+}
+
 func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {
 	c.UpdatedAt = time.Now()
 	const q = `UPDATE categories

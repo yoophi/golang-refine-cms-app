@@ -62,6 +62,17 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,
+    role          TEXT NOT NULL DEFAULT 'viewer',
+    password_hash TEXT NOT NULL,
+    avatar        TEXT NOT NULL DEFAULT '',
+    created_at    DATETIME NOT NULL,
+    updated_at    DATETIME NOT NULL
+);
 `
 
 const schemaPostgres = `
@@ -117,6 +128,17 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+    id            BIGSERIAL PRIMARY KEY,
+    name          VARCHAR(120) NOT NULL,
+    email         VARCHAR(190) NOT NULL UNIQUE,
+    role          VARCHAR(20) NOT NULL DEFAULT 'viewer',
+    password_hash VARCHAR(200) NOT NULL,
+    avatar        VARCHAR(500) NOT NULL DEFAULT '',
+    created_at    TIMESTAMPTZ NOT NULL,
+    updated_at    TIMESTAMPTZ NOT NULL
+);
 `
 
 // Migrate 는 dialect 에 맞는 스키마를 생성한다.

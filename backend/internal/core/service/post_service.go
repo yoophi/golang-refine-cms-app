@@ -59,6 +59,10 @@ func (s *postService) List(ctx context.Context, f port.PostFilter) ([]domain.Pos
 	return s.repo.List(ctx, f)
 }
 
+func (s *postService) Query(ctx context.Context, q port.ListQuery) ([]domain.Post, int, error) {
+	return s.repo.Query(ctx, q)
+}
+
 func (s *postService) Update(ctx context.Context, id uint, in port.UpdatePostInput) (*domain.Post, error) {
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {

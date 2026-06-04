@@ -14,6 +14,8 @@ type CategoryRepository interface {
 	Create(ctx context.Context, c *domain.Category) error
 	GetByID(ctx context.Context, id uint) (*domain.Category, error)
 	List(ctx context.Context) ([]domain.Category, error)
+	// Query 는 필터/정렬/페이지네이션을 적용한 목록과 (페이지 무관) 전체 개수를 반환한다.
+	Query(ctx context.Context, q ListQuery) ([]domain.Category, int, error)
 	Update(ctx context.Context, c *domain.Category) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -23,6 +25,7 @@ type TagRepository interface {
 	Create(ctx context.Context, t *domain.Tag) error
 	GetByID(ctx context.Context, id uint) (*domain.Tag, error)
 	List(ctx context.Context) ([]domain.Tag, error)
+	Query(ctx context.Context, q ListQuery) ([]domain.Tag, int, error)
 	Update(ctx context.Context, t *domain.Tag) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -39,6 +42,8 @@ type PostRepository interface {
 	Create(ctx context.Context, p *domain.Post, tagIDs []uint) error
 	GetByID(ctx context.Context, id uint) (*domain.Post, error)
 	List(ctx context.Context, f PostFilter) ([]domain.Post, error)
+	// Query 는 필터/정렬/페이지네이션을 적용한 목록과 전체 개수를 반환한다(태그 임베드 포함).
+	Query(ctx context.Context, q ListQuery) ([]domain.Post, int, error)
 	// Update 는 게시글을 갱신한다. tagIDs 가 nil 이 아니면 태그 연결을 교체한다.
 	Update(ctx context.Context, p *domain.Post, tagIDs []uint) error
 	Delete(ctx context.Context, id uint) error
@@ -49,6 +54,7 @@ type CommentRepository interface {
 	Create(ctx context.Context, c *domain.Comment) error
 	GetByID(ctx context.Context, id uint) (*domain.Comment, error)
 	ListByPost(ctx context.Context, postID uint) ([]domain.Comment, error)
+	Query(ctx context.Context, q ListQuery) ([]domain.Comment, int, error)
 	Update(ctx context.Context, c *domain.Comment) error
 	Delete(ctx context.Context, id uint) error
 }

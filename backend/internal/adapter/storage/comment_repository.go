@@ -62,6 +62,32 @@ func (r *CommentRepository) ListByPost(ctx context.Context, postID uint) ([]doma
 	return out, nil
 }
 
+var (
+	commentFilterCols = fieldMap{"postId": "post_id", "status": "status", "authorName": "author_name"}
+	commentSortCols   = fieldMap{"id": "id", "postId": "post_id", "status": "status", "authorName": "author_name", "createdAt": "created_at", "updatedAt": "updated_at"}
+)
+
+func (r *CommentRepository) Query(ctx context.Context, q port.ListQuery) ([]domain.Comment, int, error) {
+	cl := buildListClauses(q, commentFilterCols, commentSortCols, "id ASC")
+
+	var total int
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind("SELECT COUNT(*) FROM comments"+cl.where), cl.whereArgs...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "댓글 개수 조회")
+	}
+
+	const cols = "id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at"
+	args := append(append([]any{}, cl.whereArgs...), cl.limitArgs...)
+	var rows []commentRow
+	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind("SELECT "+cols+" FROM comments"+cl.where+cl.order+cl.limit), args...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "댓글 목록 조회")
+	}
+	out := make([]domain.Comment, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.toDomain())
+	}
+	return out, total, nil
+}
+
 func (r *CommentRepository) Update(ctx context.Context, c *domain.Comment) error {
 	c.UpdatedAt = time.Now()
 	const q = `UPDATE comments SET content = ?, status = ?, updated_at = ? WHERE id = ?`

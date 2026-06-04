@@ -58,6 +58,32 @@ func (r *TagRepository) List(ctx context.Context) ([]domain.Tag, error) {
 	return out, nil
 }
 
+var (
+	tagFilterCols = fieldMap{"name": "name"}
+	tagSortCols   = fieldMap{"id": "id", "name": "name", "slug": "slug", "createdAt": "created_at", "updatedAt": "updated_at"}
+)
+
+func (r *TagRepository) Query(ctx context.Context, q port.ListQuery) ([]domain.Tag, int, error) {
+	cl := buildListClauses(q, tagFilterCols, tagSortCols, "id ASC")
+
+	var total int
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind("SELECT COUNT(*) FROM tags"+cl.where), cl.whereArgs...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "태그 개수 조회")
+	}
+
+	const cols = "id, name, slug, created_at, updated_at"
+	args := append(append([]any{}, cl.whereArgs...), cl.limitArgs...)
+	var rows []tagRow
+	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind("SELECT "+cols+" FROM tags"+cl.where+cl.order+cl.limit), args...); err != nil {
+		return nil, 0, errors.Wrap(mapError(err), "태그 목록 조회")
+	}
+	out := make([]domain.Tag, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.toDomain())
+	}
+	return out, total, nil
+}
+
 func (r *TagRepository) Update(ctx context.Context, t *domain.Tag) error {
 	t.UpdatedAt = time.Now()
 	const q = `UPDATE tags SET name = ?, slug = ?, updated_at = ? WHERE id = ?`

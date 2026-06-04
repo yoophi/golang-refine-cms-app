@@ -36,6 +36,10 @@ func (s *tagService) List(ctx context.Context) ([]domain.Tag, error) {
 	return s.repo.List(ctx)
 }
 
+func (s *tagService) Query(ctx context.Context, q port.ListQuery) ([]domain.Tag, int, error) {
+	return s.repo.Query(ctx, q)
+}
+
 func (s *tagService) Update(ctx context.Context, id uint, in port.UpdateTagInput) (*domain.Tag, error) {
 	t, err := s.repo.GetByID(ctx, id)
 	if err != nil {

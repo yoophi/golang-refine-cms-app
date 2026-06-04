@@ -83,11 +83,38 @@ flowchart LR
 - **로깅**: 하위 레이어는 로깅하지 않는다(반환만). 로깅은 최상단 ginzap 1회. 미들웨어 순서 `Ginzap → RecoveryWithZap → ErrorHandle`.
 - **검증 2단계**: 1차 gin `binding` 태그 → `respondBadRequest`, 2차 비즈니스 규칙 → 서비스에서 `domain.ErrInvalidInput`.
 
-## 7. 의존성 버전 정책
+## 7. API 네임스페이스: 사용자(public) vs 관리자(admin)
 
-새 라이브러리 도입이나 버전 결정이 필요하면, 가능한 한 사내 `pos-connector` 프로젝트(`~/payhereinc/@pos-connector/main`)의 선택을 우선한다. (현재: gin v1.9.1, samber/do v1.6.0, sqlx, lib/pq, zap, gin-contrib/zap, pkg/errors v0.9.1)
+두 인바운드 어댑터가 **같은 코어(서비스/도메인)** 를 공유하되 표현/규약이 다르다.
 
-## 8. 명령어
+| 구분 | 베이스 | 패키지 | 직렬화 | 목록 | 에러 바디 | 인증 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 사용자 | `/api/v1` | `handler/http` | snake_case | `{"data":[...]}` | `Response{code,...}` | 없음 |
+| 관리자 | `/admin/api/v1` | `handler/admin` | **camelCase** | **배열 + `X-Total-Count`** | `{"message":"..."}` | **JWT + ACL** |
+
+- 관리자 API 는 refine `@refinedev/simple-rest` 규약을 따른다. FE 계약: `../docs/api.md`, 머신리더블: `../docs/swagger.json`(FE 요청) / `docs/swagger.json`(BE 구현 사양, FE 공유용).
+- 코어 재사용: 관리자 핸들러도 동일한 `port.*Service` 를 주입받는다. 새 표현만 어댑터에 추가하고 비즈니스 로직은 중복 구현하지 않는다.
+- 목록 쿼리: `_start/_end`(페이지)·`_sort/_order`(정렬)·`{field}_like`/`{field}`(필터)는 `admin/query.go` 가 `port.ListQuery` 로 파싱 → `service.Query` → `storage` 의 `buildListClauses`. **필터/정렬 필드는 리포지토리의 화이트리스트(`fieldMap`)에만 매핑**(임의 컬럼/SQL 주입 차단). 새 필터·정렬 필드는 해당 리포지토리의 `*FilterCols`/`*SortCols` 에 추가.
+- 수정은 `PATCH`(부분): `admin/patch.go` 의 `patcher` 가 본문에 존재하는 키만 덮어쓴다(없으면 기존 값 유지, `null` 은 해제). 검증/`publishedAt`/태그 교체 등은 기존 서비스 `Update` 를 재사용한다.
+- `X-Total-Count` 는 모든 목록 응답에 필수(`setTotalCount`). CORS 에서 expose 한다.
+
+## 8. 관리자 인증/인가 (JWT + RBAC)
+
+요청서: `../docs/admin-auth.md`. 핵심: **권한은 서버에서 반드시 강제**(UI 숨김은 편의일 뿐).
+
+- **JWT**: `adapter/security/jwt.go`(golang-jwt v4, HS256). 액세스 토큰 클레임 `sub`(id)·`role`·`email`·`name`. 비밀번호는 bcrypt(`adapter/security/bcrypt.go`).
+- **흐름**: `/admin/api/v1/auth/login`·`/auth/refresh` 는 공개, 그 외는 `Authenticate` 미들웨어가 Bearer 토큰을 검증해 신원을 컨텍스트에 적재. `/auth/me`·`/auth/logout` 및 CRUD 는 보호.
+- **RBAC**: 권한은 `domain.Role.Permissions()`(역할→`resource:action` 매트릭스)에서 파생. **역할 정의의 source of truth 는 BE**. 각 CRUD 라우트에 `RequirePermission(resource, action)` 적용. `superadmin` 우회(`AdminUser.Can`).
+- **상태코드**: 토큰 누락·만료·무효 → **401**(`domain.ErrUnauthorized`), 권한 부족 → **403**(`domain.ErrForbidden`). `admin/errors.go` 의 `classify` 가 매핑. 새 도메인 에러 추가 시 classify 갱신.
+- **사용자 저장소**: `admin_users` 테이블(`storage/admin_user_repository.go`). 비어있으면 `SeedDefaultAdmins` 가 개발용 계정(admin/editor/viewer, env `ADMIN_SEED_PASSWORD`)을 시드 — **운영 전 반드시 교체**.
+- **설정**: `JWT_SECRET`(운영 필수 교체), `JWT_ACCESS_TTL_MIN`, `JWT_REFRESH_TTL_HOURS`, `CORS_ALLOW_ORIGINS`.
+- 권한 매트릭스나 토큰 클레임을 바꾸면 `domain/admin_user.go` 와 `docs/swagger.json`(공유 사양)을 함께 갱신한다.
+
+## 9. 의존성 버전 정책
+
+새 라이브러리 도입이나 버전 결정이 필요하면, 가능한 한 사내 `pos-connector` 프로젝트(`~/payhereinc/@pos-connector/main`)의 선택을 우선한다. (현재: gin v1.9.1, samber/do v1.6.0, sqlx, lib/pq, zap, gin-contrib/zap, gin-contrib/cors v1.4.0, golang-jwt/jwt v4, pkg/errors v0.9.1, x/crypto bcrypt)
+
+## 10. 명령어
 
 ```bash
 make run     # 개발 서버 (기본 :8080, sqlite cms.db)
