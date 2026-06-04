@@ -203,6 +203,9 @@ func NewInjector(cfg *config.Config) *do.Injector {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
+		// 인증 엔드포인트 레이트 리밋(공개/관리자 공용 1개 인스턴스 → IP 당 합산 제한).
+		authRateLimit := httpmw.RateLimit(c.AuthRateLimit.PerMinute, c.AuthRateLimit.Burst)
+
 		// 사용자(public) API: /api/v1 (회원 인증 + 댓글 소유권)
 		httpadapter.RegisterRoutes(r.Group("/api/v1"), httpadapter.Handlers{
 			Category: do.MustInvoke[*httpadapter.CategoryHandler](in),
@@ -210,7 +213,7 @@ func NewInjector(cfg *config.Config) *do.Injector {
 			Post:     do.MustInvoke[*httpadapter.PostHandler](in),
 			Comment:  do.MustInvoke[*httpadapter.CommentHandler](in),
 			UserAuth: do.MustInvoke[*httpadapter.UserAuthHandler](in),
-		}, do.MustInvoke[port.UserAuthService](in))
+		}, do.MustInvoke[port.UserAuthService](in), authRateLimit)
 
 		// 관리자 API: /admin/api/v1 (인증 + ACL)
 		adminhttp.RegisterRoutes(
@@ -223,6 +226,7 @@ func NewInjector(cfg *config.Config) *do.Injector {
 				Tag:      do.MustInvoke[*adminhttp.TagHandler](in),
 				Comment:  do.MustInvoke[*adminhttp.CommentHandler](in),
 			},
+			authRateLimit,
 		)
 
 		return r, nil

@@ -22,12 +22,12 @@ type Handlers struct {
 //   - /auth/login, /auth/refresh 는 공개(토큰 불필요).
 //   - 그 외 전부 Authenticate(액세스 토큰 검증) 적용.
 //   - 각 CRUD 라우트는 RequirePermission 으로 `resource:action` 권한을 강제(401/403).
-func RegisterRoutes(rg *gin.RouterGroup, auth port.AuthService, h Handlers) {
+func RegisterRoutes(rg *gin.RouterGroup, auth port.AuthService, h Handlers, authRateLimit gin.HandlerFunc) {
 	rg.Use(ErrorHandle())
 
-	// 공개 엔드포인트
-	rg.POST("/auth/login", h.Auth.login)
-	rg.POST("/auth/refresh", h.Auth.refresh)
+	// 공개 엔드포인트(로그인은 레이트 리밋 적용)
+	rg.POST("/auth/login", authRateLimit, h.Auth.login)
+	rg.POST("/auth/refresh", authRateLimit, h.Auth.refresh)
 
 	// 보호 엔드포인트(액세스 토큰 필요)
 	sec := rg.Group("")

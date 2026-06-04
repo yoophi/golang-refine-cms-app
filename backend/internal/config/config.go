@@ -16,9 +16,16 @@ type Config struct {
 	HTTPPort string
 	DB       DBConfig
 	// CORSOrigins 는 공개/관리자 API 공통 허용 Origin 목록이다. ["*"] 이면 전체 허용.
-	CORSOrigins []string
-	JWT         JWTConfig
-	Admin       AdminConfig
+	CORSOrigins   []string
+	JWT           JWTConfig
+	Admin         AdminConfig
+	AuthRateLimit RateLimitConfig
+}
+
+// RateLimitConfig 는 인증 엔드포인트(IP 당) 레이트 리밋 설정이다.
+type RateLimitConfig struct {
+	PerMinute int // IP 당 분당 허용 횟수(<=0 이면 비활성)
+	Burst     int // 순간 허용 버스트
 }
 
 // DBConfig 는 데이터베이스 연결 설정이다.
@@ -67,6 +74,10 @@ func Load() *Config {
 		},
 		Admin: AdminConfig{
 			SeedPassword: getEnv("ADMIN_SEED_PASSWORD", "secret"),
+		},
+		AuthRateLimit: RateLimitConfig{
+			PerMinute: getEnvInt("AUTH_RATE_LIMIT_PER_MIN", 10),
+			Burst:     getEnvInt("AUTH_RATE_LIMIT_BURST", 5),
 		},
 	}
 }
