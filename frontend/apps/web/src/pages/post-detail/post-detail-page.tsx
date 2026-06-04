@@ -3,14 +3,17 @@ import { Link, useParams } from 'react-router-dom'
 
 import { listPostComments } from '@/entities/comment'
 import { getPost } from '@/entities/post'
+import { useAuthStore } from '@/entities/user'
 import { formatDate } from '@/shared/lib'
 import { Badge } from '@/shared/ui'
 
 import { CommentForm } from './ui/comment-form'
+import { CommentItem } from './ui/comment-item'
 
 export function PostDetailPage() {
   const { id } = useParams()
   const postId = Number(id)
+  const currentUserId = useAuthStore((s) => s.user?.id)
 
   const {
     data: post,
@@ -74,17 +77,12 @@ export function PostDetailPage() {
         {comments.length > 0 ? (
           <ul className="space-y-4">
             {comments.map((comment) => (
-              <li key={comment.id} className="border-b pb-4 last:border-b-0">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{comment.author_name}</span>
-                  <span className="text-muted-foreground">
-                    {formatDate(comment.created_at)}
-                  </span>
-                </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm">
-                  {comment.content}
-                </p>
-              </li>
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                postId={post.id}
+                currentUserId={currentUserId}
+              />
             ))}
           </ul>
         ) : (

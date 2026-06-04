@@ -1,22 +1,23 @@
 export type PublicCommentStatus = 'pending' | 'approved' | 'spam'
 
-/** 공개 API 댓글 표현(snake_case). 공개 목록에는 보통 승인(approved)된 댓글만 노출된다. */
+/** 공개 API 댓글 표현(snake_case). `user_id`로 작성 회원을 식별한다. */
 export interface PublicComment {
   id: number
   post_id: number
-  parent_id: number | null
+  user_id: number | null
   author_name: string
-  author_email: string
   content: string
   status: PublicCommentStatus
   created_at: string
 }
 
-/** 댓글 작성 요청 본문. */
+/** 로그인 회원의 댓글 작성 요청. 작성자는 토큰에서 유도되므로 보내지 않는다. */
 export interface CreateCommentInput {
   post_id: number
-  author_name: string
-  author_email: string
   content: string
-  parent_id?: number | null
+}
+
+/** 본인 댓글 수정 요청. */
+export interface UpdateCommentInput {
+  content: string
 }

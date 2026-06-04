@@ -76,7 +76,9 @@ flowchart TB
 - **refine 미사용**(어드민 전용). 데이터는 **@tanstack/react-query + axios**로 **공개 API `/api/v1`** 소비(`VITE_API_URL`).
 - 라우팅 **react-router-dom**(v7), 전역 클라이언트 상태 **zustand**(독자 댓글 작성자 이름/이메일 persist → 댓글 폼 자동완성).
 - 공개 API 계약은 BE 현행 그대로 사용: **목록 `{ data: [...] }` 엔벨로프, snake_case 필드(`category_id`, `post_id`, `published_at` 등), 게시글에 `tags[]` 임베드.** (관리자 API의 simple-rest 규약과 다름.)
-- 화면: 게시글 목록(+카테고리 필터) `/`, 게시글 상세+댓글+댓글 작성 `/posts/:id`.
+- 화면: 게시글 목록(+카테고리 필터) `/`, 게시글 상세+댓글 `/posts/:id`, 로그인 `/login`, 회원가입 `/register`, 내 정보 `/profile`(가드).
+- **회원 인증**: 공개 API `/api/v1/auth/*`(register/login/me/profile), JWT Bearer. 토큰은 `shared/api/auth-token.ts`(localStorage, shared 전용 — http-client 인터셉터가 사용), 회원 정보는 `entities/user`의 zustand 스토어(persist). 관리자 토큰과 분리.
+- **댓글**: 로그인 회원만 작성(작성자는 토큰에서 유도), `comment.user_id === 현재 회원` 인 본인 댓글만 수정/삭제 노출. 소유권은 BE에서 강제(`docs/user-auth.md`).
 
 ## 코딩 규약 (dashboard)
 - `verbatimModuleSyntax` 활성화 — 타입 import는 반드시 `import type` 사용.

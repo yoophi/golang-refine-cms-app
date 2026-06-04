@@ -1,79 +1,57 @@
 import { type FormEvent, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 
 import { createComment } from '@/entities/comment'
-import { useReaderStore } from '@/shared/store/reader-store'
-import { Button, Input, Label, Textarea } from '@/shared/ui'
+import { useAuthStore } from '@/entities/user'
+import { Button, Textarea } from '@/shared/ui'
 
 export function CommentForm({ postId }: { postId: number }) {
+  const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
-  const storedName = useReaderStore((s) => s.authorName)
-  const storedEmail = useReaderStore((s) => s.authorEmail)
-  const setAuthor = useReaderStore((s) => s.setAuthor)
-
-  const [authorName, setAuthorName] = useState(storedName)
-  const [authorEmail, setAuthorEmail] = useState(storedEmail)
   const [content, setContent] = useState('')
 
   const mutation = useMutation({
     mutationFn: createComment,
     onSuccess: () => {
-      setAuthor({ authorName, authorEmail })
       setContent('')
       queryClient.invalidateQueries({ queryKey: ['comments', postId] })
     },
   })
 
+  if (!user) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        댓글을 작성하려면{' '}
+        <Link to="/login" className="text-foreground underline">
+          로그인
+        </Link>
+        하세요.
+      </p>
+    )
+  }
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault()
-    mutation.mutate({
-      post_id: postId,
-      author_name: authorName,
-      author_email: authorEmail,
-      content,
-    })
+    mutation.mutate({ post_id: postId, content })
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="authorName">이름</Label>
-          <Input
-            id="authorName"
-            value={authorName}
-            onChange={(event) => setAuthorName(event.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="authorEmail">이메일</Label>
-          <Input
-            id="authorEmail"
-            type="email"
-            value={authorEmail}
-            onChange={(event) => setAuthorEmail(event.target.value)}
-            required
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="content">댓글</Label>
-        <Textarea
-          id="content"
-          rows={4}
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          required
-        />
-      </div>
+    <form onSubmit={onSubmit} className="space-y-3">
+      <Textarea
+        rows={4}
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        placeholder={`${user.name} 님으로 댓글 작성`}
+        required
+      />
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={mutation.isPending}>
           댓글 등록
         </Button>
         {mutation.isError ? (
           <span className="text-destructive text-sm">
-            등록에 실패했습니다. 잠시 후 다시 시도해주세요.
+            등록에 실패했습니다.
           </span>
         ) : null}
         {mutation.isSuccess ? (

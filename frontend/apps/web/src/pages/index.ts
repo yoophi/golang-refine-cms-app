@@ -1,3 +1,6 @@
 export { PostListPage } from './post-list'
 export { PostDetailPage } from './post-detail'
+export { LoginPage } from './login'
+export { RegisterPage } from './register'
+export { ProfilePage } from './profile'
 export { NotFoundPage } from './not-found'

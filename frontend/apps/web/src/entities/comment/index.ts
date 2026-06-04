@@ -2,5 +2,11 @@ export type {
   PublicComment,
   PublicCommentStatus,
   CreateCommentInput,
+  UpdateCommentInput,
 } from './model/types'
-export { listPostComments, createComment } from './api'
+export {
+  listPostComments,
+  createComment,
+  updateComment,
+  deleteComment,
+} from './api'
