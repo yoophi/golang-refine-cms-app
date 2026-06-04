@@ -59,9 +59,9 @@ export function PostList() {
         cell: ({ getValue, table }) => {
           const meta = table.options.meta as PostTableMeta | undefined
           const category = meta?.categoryData?.data.find(
-            (item) => item.id === getValue<number>(),
+            (item) => item.id === getValue<number | null>(),
           )
-          return category?.title ?? '—'
+          return category?.name ?? '—'
         },
       },
       {
@@ -71,14 +71,14 @@ export function PostList() {
         cell: ({ getValue, table }) => {
           const meta = table.options.meta as PostTableMeta | undefined
           const ids = getValue<number[]>() ?? []
-          const titles = ids
-            .map((id) => meta?.tagData?.data.find((item) => item.id === id)?.title)
-            .filter((title): title is string => Boolean(title))
+          const names = ids
+            .map((id) => meta?.tagData?.data.find((item) => item.id === id)?.name)
+            .filter((name): name is string => Boolean(name))
           return (
             <div className="flex flex-wrap gap-1">
-              {titles.map((title) => (
-                <Badge key={title} variant="outline">
-                  {title}
+              {names.map((name) => (
+                <Badge key={name} variant="outline">
+                  {name}
                 </Badge>
               ))}
             </div>
@@ -115,7 +115,9 @@ export function PostList() {
   } = useTable<Post>({ columns, refineCoreProps: { resource: 'posts' } })
 
   const posts = tableQuery?.data?.data ?? []
-  const categoryIds = posts.map((post) => post.categoryId)
+  const categoryIds = posts
+    .map((post) => post.categoryId)
+    .filter((id): id is number => id != null)
   const tagIds = Array.from(new Set(posts.flatMap((post) => post.tagIds ?? [])))
 
   const { result: categoryData } = useMany<Category>({

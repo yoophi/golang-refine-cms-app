@@ -1,8 +1,6 @@
 package http
 
 import (
-	"errors"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -10,23 +8,24 @@ import (
 	"github.com/yoophi/refine-cms/backend/internal/core/domain"
 )
 
-// errorResponse 는 표준 에러 응답 바디이다.
-type errorResponse struct {
-	Error string `json:"error"`
+// Response 는 에러 응답 표준 봉투이다. (성공 응답은 리소스 객체/`{"data": ...}` 를 직접 반환)
+type Response struct {
+	Code    int    `json:"code"`             // 애플리케이션 ErrorCode
+	Status  int    `json:"status"`           // HTTP 상태 코드
+	Message string `json:"message"`          // 사용자 노출 메시지
+	Detail  string `json:"detail,omitempty"` // 4xx 에 한해 디버깅용 원본 에러 문자열
 }
 
-// respondError 는 도메인 에러를 적절한 HTTP 상태 코드로 매핑해 응답한다.
+// respondError 는 에러를 ErrorCode 로 매핑해 gin 컨텍스트에 "등록만" 한다.
+// 실제 HTTP 응답은 ErrorHandle 미들웨어가 생성한다(에러는 한 번만 처리).
+// 호출 측은 이 함수 호출 후 반드시 return 한다.
 func respondError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.ErrNotFound):
-		c.JSON(http.StatusNotFound, errorResponse{Error: err.Error()})
-	case errors.Is(err, domain.ErrConflict):
-		c.JSON(http.StatusConflict, errorResponse{Error: err.Error()})
-	case errors.Is(err, domain.ErrInvalidInput):
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
-	default:
-		c.JSON(http.StatusInternalServerError, errorResponse{Error: "내부 서버 오류"})
-	}
+	_ = c.Error(fromDomain(err))
+}
+
+// respondBadRequest 는 요청 바인딩/파싱 실패 등 도메인 이전 단계의 입력 오류를 등록한다.
+func respondBadRequest(c *gin.Context, err error) {
+	_ = c.Error(wrapGinError(err, ErrBadParamInput))
 }
 
 // parseIDParam 은 경로 파라미터 :id 를 uint 로 파싱한다.
@@ -34,7 +33,7 @@ func parseIDParam(c *gin.Context, name string) (uint, bool) {
 	raw := c.Param(name)
 	v, err := strconv.ParseUint(raw, 10, 64)
 	if err != nil || v == 0 {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: "잘못된 ID 입니다"})
+		respondBadRequest(c, domain.ErrInvalidInput)
 		return 0, false
 	}
 	return uint(v), true

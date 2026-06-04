@@ -29,7 +29,7 @@ func (h *CategoryHandler) register(rg *gin.RouterGroup) {
 func (h *CategoryHandler) create(c *gin.Context) {
 	var req createCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Create(c.Request.Context(), port.CreateCategoryInput{
@@ -78,7 +78,7 @@ func (h *CategoryHandler) update(c *gin.Context) {
 	}
 	var req updateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Update(c.Request.Context(), id, port.UpdateCategoryInput{

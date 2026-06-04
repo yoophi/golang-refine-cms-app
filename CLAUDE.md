@@ -4,10 +4,12 @@
 
 ```
 .
-├── backend/    # Go 백엔드 (미구현)
+├── backend/    # Go 백엔드 (Gin · 헥사고날 아키텍처) — 상세는 backend/CLAUDE.md
 ├── dashboard/  # 어드민 대시보드 (refine)
-└── docs/       # API 명세 (swagger.json, api.md) — BE 전달용
+└── docs/       # 관리자 API 명세 (swagger.json, api.md) — BE 전달용
 ```
+
+> 백엔드 코드 작업 시에는 `backend/CLAUDE.md`(헥사고날 레이어 규칙)를 우선 따른다.
 
 ## 아키텍처 결정사항 (Architecture Decisions)
 
@@ -41,15 +43,21 @@ flowchart TB
 
 ### 데이터 / API
 - **데이터 프로바이더: `@refinedev/simple-rest`** (json-server 스타일 규약).
-- **API 호스트: `http://localhost:9000`** (백엔드 미구현 상태). `dashboard/.env`의 `VITE_API_URL`로 덮어쓸 수 있다.
-- API 명세는 **`docs/swagger.json`(OpenAPI 3.0) + `docs/api.md`** 에 정의되어 있으며 BE 구현 기준이다.
-  - 목록 응답은 `X-Total-Count` 헤더 필수, 수정은 `PATCH`, CORS에서 해당 헤더 expose 필요.
+- **관리자 API 네임스페이스는 사용자용과 분리한다.**
+  - 사용자(public) API: `/api/v1` (기존 백엔드 컨벤션, 대시보드 범위 밖)
+  - **관리자(admin) API: `/admin/api/v1`** (대시보드 전용). 대시보드 베이스 URL = `http://localhost:9000/admin/api/v1` (`dashboard/.env`의 `VITE_API_URL`로 변경).
+- 관리자 API 명세는 **`docs/swagger.json`(OpenAPI 3.0) + `docs/api.md`** 에 정의되어 있으며 BE 구현 기준이다.
+  - 목록 응답은 배열 + `X-Total-Count` 헤더 필수, 수정은 `PATCH`, 필드 네이밍 camelCase, CORS에서 해당 헤더 expose 필요.
 - 라우팅: `@refinedev/react-router` + `react-router` v7.
 - 테이블: `@refinedev/react-table` + `@tanstack/react-table`. 폼: `@refinedev/react-hook-form` + `react-hook-form`.
 
-### 리소스 / 도메인 모델
-- `posts`, `categories`, `tags`, `comments` (관계: category 1:N post, post 1:N comment, post M:N tag).
-- `status` enum은 `draft | published | rejected` (posts·comments 공통).
+### 리소스 / 도메인 모델 (BE 도메인과 일치)
+- `posts`: title, slug, excerpt, content, status, categoryId(nullable), tagIds(M:N), publishedAt(nullable)
+- `categories`: name, slug, description, parentId(nullable, 자기참조 트리)
+- `tags`: name, slug
+- `comments`: postId, parentId(nullable, 스레드), authorName, authorEmail, content, status
+- 관계: category 1:N post, post 1:N comment, post M:N tag, category·comment 자기참조.
+- 상태 enum: `Post.status` = `draft | published | archived`, `Comment.status` = `pending | approved | spam`.
 
 ## 코딩 규약 (dashboard)
 - `verbatimModuleSyntax` 활성화 — 타입 import는 반드시 `import type` 사용.

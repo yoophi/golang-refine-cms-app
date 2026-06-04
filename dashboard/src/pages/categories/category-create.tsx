@@ -1,45 +1,35 @@
-import { useNavigation } from '@refinedev/core'
+import { useNavigation, type HttpError } from '@refinedev/core'
 import { useForm } from '@refinedev/react-hook-form'
 
-import {
-  Button,
-  Card,
-  CardContent,
-  Input,
-  Label,
-  PageHeader,
-} from '@/shared/ui'
+import type { Category } from '@/entities/category'
+import { Button, Card, CardContent, PageHeader } from '@/shared/ui'
+
+import { CategoryFields } from './ui/category-fields'
+import type { CategoryFormValues } from './ui/category-form-values'
 
 export function CategoryCreate() {
   const { list } = useNavigation()
   const {
     refineCore: { onFinish, formLoading },
     register,
+    control,
     handleSubmit,
     formState: { errors },
-  } = useForm({ refineCoreProps: { resource: 'categories', action: 'create' } })
+  } = useForm<Category, HttpError, CategoryFormValues>({
+    refineCoreProps: { resource: 'categories', action: 'create' },
+  })
 
   return (
     <div>
       <PageHeader title="카테고리 생성" />
       <Card>
         <CardContent>
-          <form
-            onSubmit={handleSubmit(onFinish)}
-            className="max-w-lg space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="title">제목</Label>
-              <Input
-                id="title"
-                {...register('title', { required: '제목을 입력하세요.' })}
-              />
-              {errors.title ? (
-                <p className="text-destructive text-sm">
-                  {errors.title.message as string}
-                </p>
-              ) : null}
-            </div>
+          <form onSubmit={handleSubmit(onFinish)} className="space-y-6">
+            <CategoryFields
+              register={register}
+              control={control}
+              errors={errors}
+            />
             <div className="flex gap-2">
               <Button type="submit" disabled={formLoading}>
                 저장

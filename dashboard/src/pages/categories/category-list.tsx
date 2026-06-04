@@ -25,7 +25,8 @@ export function CategoryList() {
   const columns = useMemo<ColumnDef<Category>[]>(
     () => [
       { id: 'id', accessorKey: 'id', header: 'ID' },
-      { id: 'title', accessorKey: 'title', header: '제목' },
+      { id: 'name', accessorKey: 'name', header: '이름' },
+      { id: 'slug', accessorKey: 'slug', header: '슬러그' },
       {
         id: 'createdAt',
         accessorKey: 'createdAt',

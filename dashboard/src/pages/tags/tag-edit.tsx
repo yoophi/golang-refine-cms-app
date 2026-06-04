@@ -1,14 +1,10 @@
-import { useNavigation } from '@refinedev/core'
+import { useNavigation, type HttpError } from '@refinedev/core'
 import { useForm } from '@refinedev/react-hook-form'
 
-import {
-  Button,
-  Card,
-  CardContent,
-  Input,
-  Label,
-  PageHeader,
-} from '@/shared/ui'
+import type { Tag } from '@/entities/tag'
+import { Button, Card, CardContent, PageHeader } from '@/shared/ui'
+
+import { TagFields, type TagFormValues } from './ui/tag-fields'
 
 export function TagEdit() {
   const { list } = useNavigation()
@@ -17,29 +13,17 @@ export function TagEdit() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ refineCoreProps: { resource: 'tags', action: 'edit' } })
+  } = useForm<Tag, HttpError, TagFormValues>({
+    refineCoreProps: { resource: 'tags', action: 'edit' },
+  })
 
   return (
     <div>
       <PageHeader title="태그 수정" />
       <Card>
         <CardContent>
-          <form
-            onSubmit={handleSubmit(onFinish)}
-            className="max-w-lg space-y-4"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="title">제목</Label>
-              <Input
-                id="title"
-                {...register('title', { required: '제목을 입력하세요.' })}
-              />
-              {errors.title ? (
-                <p className="text-destructive text-sm">
-                  {errors.title.message as string}
-                </p>
-              ) : null}
-            </div>
+          <form onSubmit={handleSubmit(onFinish)} className="space-y-6">
+            <TagFields register={register} errors={errors} />
             <div className="flex gap-2">
               <Button type="submit" disabled={formLoading}>
                 저장

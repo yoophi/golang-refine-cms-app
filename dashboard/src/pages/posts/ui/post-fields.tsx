@@ -31,7 +31,7 @@ interface PostFieldsProps {
 export function PostFields({ register, control, errors }: PostFieldsProps) {
   const { options: categoryOptions } = useSelect<Category>({
     resource: 'categories',
-    optionLabel: 'title',
+    optionLabel: 'name',
     optionValue: 'id',
   })
 
@@ -52,6 +52,23 @@ export function PostFields({ register, control, errors }: PostFieldsProps) {
         {errors.title ? (
           <p className="text-destructive text-sm">{errors.title.message}</p>
         ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="slug">슬러그</Label>
+        <Input
+          id="slug"
+          placeholder="예: hello-world"
+          {...register('slug', { required: '슬러그를 입력하세요.' })}
+        />
+        {errors.slug ? (
+          <p className="text-destructive text-sm">{errors.slug.message}</p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="excerpt">요약</Label>
+        <Textarea id="excerpt" rows={2} {...register('excerpt')} />
       </div>
 
       <div className="space-y-2">
@@ -94,16 +111,19 @@ export function PostFields({ register, control, errors }: PostFieldsProps) {
         <Controller
           control={control}
           name="categoryId"
-          rules={{ required: '카테고리를 선택하세요.' }}
+          defaultValue={null}
           render={({ field }) => (
             <Select
-              value={field.value != null ? String(field.value) : undefined}
-              onValueChange={(value) => field.onChange(Number(value))}
+              value={field.value != null ? String(field.value) : 'none'}
+              onValueChange={(value) =>
+                field.onChange(value === 'none' ? null : Number(value))
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">없음</SelectItem>
                 {categoryOptions.map((option) => (
                   <SelectItem key={String(option.value)} value={String(option.value)}>
                     {option.label}
@@ -113,11 +133,6 @@ export function PostFields({ register, control, errors }: PostFieldsProps) {
             </Select>
           )}
         />
-        {errors.categoryId ? (
-          <p className="text-destructive text-sm">
-            {errors.categoryId.message}
-          </p>
-        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -154,7 +169,7 @@ export function PostFields({ register, control, errors }: PostFieldsProps) {
                           field.onChange(Array.from(next))
                         }}
                       />
-                      {tag.title}
+                      {tag.name}
                     </label>
                   ))
                 )}

@@ -3,14 +3,13 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 
-	_ "github.com/lib/pq"      // postgres 드라이버 등록 (이름: "postgres")
-	_ "modernc.org/sqlite"     // 순수 Go sqlite 드라이버 등록 (이름: "sqlite")
+	_ "github.com/lib/pq"  // postgres 드라이버 등록 (이름: "postgres")
+	_ "modernc.org/sqlite" // 순수 Go sqlite 드라이버 등록 (이름: "sqlite")
 
 	"github.com/yoophi/refine-cms/backend/internal/config"
 	"github.com/yoophi/refine-cms/backend/internal/core/domain"
@@ -27,11 +26,11 @@ func NewDB(cfg config.DBConfig) (*sqlx.DB, string, error) {
 	switch cfg.Driver {
 	case DriverPostgres:
 		if cfg.DSN == "" {
-			return nil, "", fmt.Errorf("postgres 드라이버에는 DB_DSN 이 필요합니다")
+			return nil, "", errors.New("postgres 드라이버에는 DB_DSN 이 필요합니다")
 		}
 		db, err := sqlx.Connect(DriverPostgres, cfg.DSN)
 		if err != nil {
-			return nil, "", fmt.Errorf("postgres 연결 실패: %w", err)
+			return nil, "", errors.Wrap(err, "postgres 연결 실패")
 		}
 		return db, DriverPostgres, nil
 	case DriverSQLite, "":
@@ -40,11 +39,11 @@ func NewDB(cfg config.DBConfig) (*sqlx.DB, string, error) {
 		dsn := cfg.SQLitePath + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 		db, err := sqlx.Connect(DriverSQLite, dsn)
 		if err != nil {
-			return nil, "", fmt.Errorf("sqlite 연결 실패: %w", err)
+			return nil, "", errors.Wrap(err, "sqlite 연결 실패")
 		}
 		return db, DriverSQLite, nil
 	default:
-		return nil, "", fmt.Errorf("지원하지 않는 DB 드라이버입니다: %s", cfg.Driver)
+		return nil, "", errors.Errorf("지원하지 않는 DB 드라이버입니다: %s", cfg.Driver)
 	}
 }
 

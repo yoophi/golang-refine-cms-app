@@ -30,8 +30,14 @@ export function CategoryShow() {
             <dl className="grid grid-cols-[8rem_1fr] gap-y-3 text-sm">
               <dt className="text-muted-foreground">ID</dt>
               <dd>{record.id}</dd>
-              <dt className="text-muted-foreground">제목</dt>
-              <dd>{record.title}</dd>
+              <dt className="text-muted-foreground">이름</dt>
+              <dd>{record.name}</dd>
+              <dt className="text-muted-foreground">슬러그</dt>
+              <dd>{record.slug}</dd>
+              <dt className="text-muted-foreground">설명</dt>
+              <dd className="whitespace-pre-wrap">{record.description || '—'}</dd>
+              <dt className="text-muted-foreground">상위 카테고리</dt>
+              <dd>{record.parentId != null ? `#${record.parentId}` : '—'}</dd>
               <dt className="text-muted-foreground">생성일</dt>
               <dd>{formatDateTime(record.createdAt)}</dd>
               <dt className="text-muted-foreground">수정일</dt>

@@ -48,9 +48,10 @@ export function CommentList() {
           return post?.title ?? '—'
         },
       },
+      { id: 'authorName', accessorKey: 'authorName', header: '작성자' },
       {
-        id: 'text',
-        accessorKey: 'text',
+        id: 'content',
+        accessorKey: 'content',
         header: '내용',
         cell: ({ getValue }) => (
           <span className="line-clamp-1 max-w-md">{getValue<string>()}</span>

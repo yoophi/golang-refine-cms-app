@@ -9,6 +9,7 @@ import {
 import { COMMENT_STATUSES, COMMENT_STATUS_LABEL } from '@/entities/comment'
 import type { Post } from '@/entities/post'
 import {
+  Input,
   Label,
   Select,
   SelectContent,
@@ -64,15 +65,34 @@ export function CommentFields({ register, control, errors }: CommentFieldsProps)
         ) : null}
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="authorName">작성자 이름</Label>
+          <Input
+            id="authorName"
+            {...register('authorName', { required: '작성자 이름을 입력하세요.' })}
+          />
+          {errors.authorName ? (
+            <p className="text-destructive text-sm">
+              {errors.authorName.message}
+            </p>
+          ) : null}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="authorEmail">작성자 이메일</Label>
+          <Input id="authorEmail" type="email" {...register('authorEmail')} />
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label htmlFor="text">내용</Label>
+        <Label htmlFor="content">내용</Label>
         <Textarea
-          id="text"
+          id="content"
           rows={5}
-          {...register('text', { required: '내용을 입력하세요.' })}
+          {...register('content', { required: '내용을 입력하세요.' })}
         />
-        {errors.text ? (
-          <p className="text-destructive text-sm">{errors.text.message}</p>
+        {errors.content ? (
+          <p className="text-destructive text-sm">{errors.content.message}</p>
         ) : null}
       </div>
 
@@ -81,7 +101,7 @@ export function CommentFields({ register, control, errors }: CommentFieldsProps)
         <Controller
           control={control}
           name="status"
-          defaultValue="draft"
+          defaultValue="pending"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full">

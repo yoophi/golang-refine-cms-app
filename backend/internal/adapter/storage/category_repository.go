@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 
 	"github.com/yoophi/refine-cms/backend/internal/core/domain"
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
@@ -31,7 +32,7 @@ func (r *CategoryRepository) Create(ctx context.Context, c *domain.Category) err
 	id, err := insertReturningID(ctx, r.db, r.driver, q,
 		c.Name, c.Slug, c.Description, c.ParentID, c.CreatedAt, c.UpdatedAt)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "카테고리 생성")
 	}
 	c.ID = uint(id)
 	return nil
@@ -42,7 +43,7 @@ func (r *CategoryRepository) GetByID(ctx context.Context, id uint) (*domain.Cate
 	const q = `SELECT id, name, slug, description, parent_id, created_at, updated_at
 	           FROM categories WHERE id = ?`
 	if err := r.db.GetContext(ctx, &row, r.db.Rebind(q), id); err != nil {
-		return nil, mapError(err)
+		return nil, errors.Wrap(mapError(err), "카테고리 조회")
 	}
 	d := row.toDomain()
 	return &d, nil
@@ -53,7 +54,7 @@ func (r *CategoryRepository) List(ctx context.Context) ([]domain.Category, error
 	const q = `SELECT id, name, slug, description, parent_id, created_at, updated_at
 	           FROM categories ORDER BY id`
 	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q)); err != nil {
-		return nil, mapError(err)
+		return nil, errors.Wrap(mapError(err), "카테고리 목록 조회")
 	}
 	out := make([]domain.Category, 0, len(rows))
 	for _, row := range rows {
@@ -70,15 +71,15 @@ func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) err
 	res, err := r.db.ExecContext(ctx, r.db.Rebind(q),
 		c.Name, c.Slug, c.Description, c.ParentID, c.UpdatedAt, c.ID)
 	if err != nil {
-		return mapError(err)
+		return errors.Wrap(mapError(err), "카테고리 수정")
 	}
-	return affectedOrNotFound(res)
+	return errors.Wrap(affectedOrNotFound(res), "카테고리 수정")
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id uint) error {
 	res, err := r.db.ExecContext(ctx, r.db.Rebind(`DELETE FROM categories WHERE id = ?`), id)
 	if err != nil {
-		return mapError(err)
+		return errors.Wrap(mapError(err), "카테고리 삭제")
 	}
-	return affectedOrNotFound(res)
+	return errors.Wrap(affectedOrNotFound(res), "카테고리 삭제")
 }

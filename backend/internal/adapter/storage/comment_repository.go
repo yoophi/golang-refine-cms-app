@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 
 	"github.com/yoophi/refine-cms/backend/internal/core/domain"
 	"github.com/yoophi/refine-cms/backend/internal/core/port"
@@ -30,7 +31,7 @@ func (r *CommentRepository) Create(ctx context.Context, c *domain.Comment) error
 	id, err := insertReturningID(ctx, r.db, r.driver, q,
 		c.PostID, c.ParentID, c.AuthorName, c.AuthorEmail, c.Content, string(c.Status), c.CreatedAt, c.UpdatedAt)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "댓글 생성")
 	}
 	c.ID = uint(id)
 	return nil
@@ -41,7 +42,7 @@ func (r *CommentRepository) GetByID(ctx context.Context, id uint) (*domain.Comme
 	const q = `SELECT id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at
 	           FROM comments WHERE id = ?`
 	if err := r.db.GetContext(ctx, &row, r.db.Rebind(q), id); err != nil {
-		return nil, mapError(err)
+		return nil, errors.Wrap(mapError(err), "댓글 조회")
 	}
 	d := row.toDomain()
 	return &d, nil
@@ -52,7 +53,7 @@ func (r *CommentRepository) ListByPost(ctx context.Context, postID uint) ([]doma
 	const q = `SELECT id, post_id, parent_id, author_name, author_email, content, status, created_at, updated_at
 	           FROM comments WHERE post_id = ? ORDER BY id`
 	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), postID); err != nil {
-		return nil, mapError(err)
+		return nil, errors.Wrap(mapError(err), "댓글 목록 조회")
 	}
 	out := make([]domain.Comment, 0, len(rows))
 	for _, row := range rows {
@@ -66,15 +67,15 @@ func (r *CommentRepository) Update(ctx context.Context, c *domain.Comment) error
 	const q = `UPDATE comments SET content = ?, status = ?, updated_at = ? WHERE id = ?`
 	res, err := r.db.ExecContext(ctx, r.db.Rebind(q), c.Content, string(c.Status), c.UpdatedAt, c.ID)
 	if err != nil {
-		return mapError(err)
+		return errors.Wrap(mapError(err), "댓글 수정")
 	}
-	return affectedOrNotFound(res)
+	return errors.Wrap(affectedOrNotFound(res), "댓글 수정")
 }
 
 func (r *CommentRepository) Delete(ctx context.Context, id uint) error {
 	res, err := r.db.ExecContext(ctx, r.db.Rebind(`DELETE FROM comments WHERE id = ?`), id)
 	if err != nil {
-		return mapError(err)
+		return errors.Wrap(mapError(err), "댓글 삭제")
 	}
-	return affectedOrNotFound(res)
+	return errors.Wrap(affectedOrNotFound(res), "댓글 삭제")
 }

@@ -42,6 +42,10 @@ export function CommentShow() {
               <dd>{record.id}</dd>
               <dt className="text-muted-foreground">게시글</dt>
               <dd>{post?.title ?? `#${record.postId}`}</dd>
+              <dt className="text-muted-foreground">작성자</dt>
+              <dd>{record.authorName}</dd>
+              <dt className="text-muted-foreground">이메일</dt>
+              <dd>{record.authorEmail || '—'}</dd>
               <dt className="text-muted-foreground">상태</dt>
               <dd>
                 <Badge variant={COMMENT_STATUS_VARIANT[record.status]}>
@@ -49,7 +53,7 @@ export function CommentShow() {
                 </Badge>
               </dd>
               <dt className="text-muted-foreground">내용</dt>
-              <dd className="whitespace-pre-wrap">{record.text}</dd>
+              <dd className="whitespace-pre-wrap">{record.content}</dd>
               <dt className="text-muted-foreground">생성일</dt>
               <dd>{formatDateTime(record.createdAt)}</dd>
               <dt className="text-muted-foreground">수정일</dt>

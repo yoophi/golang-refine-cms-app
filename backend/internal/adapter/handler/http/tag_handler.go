@@ -29,7 +29,7 @@ func (h *TagHandler) register(rg *gin.RouterGroup) {
 func (h *TagHandler) create(c *gin.Context) {
 	var req createTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Create(c.Request.Context(), port.CreateTagInput{Name: req.Name, Slug: req.Slug})
@@ -73,7 +73,7 @@ func (h *TagHandler) update(c *gin.Context) {
 	}
 	var req updateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Update(c.Request.Context(), id, port.UpdateTagInput{Name: req.Name, Slug: req.Slug})

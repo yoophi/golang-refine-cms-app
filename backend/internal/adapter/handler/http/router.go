@@ -20,8 +20,12 @@ type Handlers struct {
 // NewRouter 는 미들웨어와 모든 라우트가 구성된 gin 엔진을 생성한다.
 func NewRouter(logger *zap.Logger, h Handlers) *gin.Engine {
 	r := gin.New()
+	// 미들웨어 후처리는 등록 역순으로 실행된다:
+	// ErrorHandle 이 c.Errors 를 HTTP 응답으로 변환한 뒤, Ginzap 이 최종 상태/에러를 로깅한다.
+	// (응답 생성=ErrorHandle, 로깅=Ginzap 으로 책임을 분리해 에러를 한 번만 처리)
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(logger, true))
+	r.Use(ErrorHandle())
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})

@@ -32,7 +32,7 @@ func (h *CommentHandler) register(rg *gin.RouterGroup) {
 func (h *CommentHandler) create(c *gin.Context) {
 	var req createCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Create(c.Request.Context(), port.CreateCommentInput{
@@ -86,7 +86,7 @@ func (h *CommentHandler) update(c *gin.Context) {
 	}
 	var req updateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse{Error: err.Error()})
+		respondBadRequest(c, err)
 		return
 	}
 	out, err := h.svc.Update(c.Request.Context(), id, port.UpdateCommentInput{

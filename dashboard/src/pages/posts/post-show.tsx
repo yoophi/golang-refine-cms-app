@@ -18,7 +18,7 @@ export function PostShow() {
   const { result: category } = useOne<Category>({
     resource: 'categories',
     id: record?.categoryId ?? 0,
-    queryOptions: { enabled: Boolean(record?.categoryId) },
+    queryOptions: { enabled: record?.categoryId != null },
   })
   const { result: tagData } = useMany<Tag>({
     resource: 'tags',
@@ -48,6 +48,8 @@ export function PostShow() {
               <dd>{record.id}</dd>
               <dt className="text-muted-foreground">제목</dt>
               <dd>{record.title}</dd>
+              <dt className="text-muted-foreground">슬러그</dt>
+              <dd>{record.slug}</dd>
               <dt className="text-muted-foreground">상태</dt>
               <dd>
                 <Badge variant={POST_STATUS_VARIANT[record.status]}>
@@ -55,21 +57,25 @@ export function PostShow() {
                 </Badge>
               </dd>
               <dt className="text-muted-foreground">카테고리</dt>
-              <dd>{category?.title ?? '—'}</dd>
+              <dd>{category?.name ?? '—'}</dd>
               <dt className="text-muted-foreground">태그</dt>
               <dd className="flex flex-wrap gap-1">
                 {tagData?.data.length ? (
                   tagData.data.map((tag) => (
                     <Badge key={tag.id} variant="outline">
-                      {tag.title}
+                      {tag.name}
                     </Badge>
                   ))
                 ) : (
                   <span>—</span>
                 )}
               </dd>
+              <dt className="text-muted-foreground">요약</dt>
+              <dd className="whitespace-pre-wrap">{record.excerpt || '—'}</dd>
               <dt className="text-muted-foreground">본문</dt>
               <dd className="whitespace-pre-wrap">{record.content}</dd>
+              <dt className="text-muted-foreground">발행일</dt>
+              <dd>{record.publishedAt ? formatDateTime(record.publishedAt) : '—'}</dd>
               <dt className="text-muted-foreground">생성일</dt>
               <dd>{formatDateTime(record.createdAt)}</dd>
               <dt className="text-muted-foreground">수정일</dt>

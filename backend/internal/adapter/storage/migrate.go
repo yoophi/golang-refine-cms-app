@@ -1,9 +1,8 @@
 package storage
 
 import (
-	"fmt"
-
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 // 스키마 정의를 dialect 별로 보관한다. 운영 환경에서는 별도 마이그레이션 도구
@@ -127,7 +126,7 @@ func Migrate(db *sqlx.DB, driver string) error {
 		schema = schemaPostgres
 	}
 	if _, err := db.Exec(schema); err != nil {
-		return fmt.Errorf("스키마 마이그레이션 실패: %w", err)
+		return errors.Wrap(err, "스키마 마이그레이션 실패")
 	}
 	return nil
 }

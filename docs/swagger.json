@@ -1,16 +1,18 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "CMS Dashboard API",
+    "title": "CMS Admin API",
     "version": "0.1.0",
-    "description": "refine 대시보드(`dashboard/`)가 호출하는 백엔드 REST API.\n\n데이터 프로바이더로 `@refinedev/simple-rest`(json-server 스타일 규약)를 사용한다. 따라서 아래 규약을 반드시 지켜야 한다.\n\n- 목록 조회 페이지네이션: `_start`(offset, 포함), `_end`(offset, 미포함). 반환 배열과 함께 전체 개수를 **`X-Total-Count` 응답 헤더**로 반드시 내려준다.\n- 정렬: `_sort`(필드명, 콤마 구분), `_order`(`asc`/`desc`, 콤마 구분).\n- 필터: `{field}_like`, `{field}_ne`, `{field}_gte`, `{field}_lte`, `{field}_gt`, `{field}_lt`, 그리고 정확히 일치는 `{field}=값`.\n- 수정은 `PATCH /{resource}/{id}` 를 사용한다(부분 수정).\n- `useMany`(연관 데이터 조회)는 simple-rest에서 별도 엔드포인트 없이 `GET /{resource}/{id}` 를 id 개수만큼 호출한다.\n- CORS 사용 시 `Access-Control-Expose-Headers: X-Total-Count` 설정이 필요하다."
+    "description": "관리자 대시보드(`dashboard/`, refine 기반)가 호출하는 **관리자(admin) 전용 API**.\n\n## 사용자(public) API와의 분리\n- 사용자/프론트 공개 API: `/api/v1/...` (기존 백엔드 구현, 본 문서 범위 밖)\n- **관리자 API: `/admin/api/v1/...`** (본 문서가 정의, 대시보드 전용)\n- 두 네임스페이스는 분리하며, 관리자 API는 인증·인가(관리자 권한)를 별도로 적용하는 것을 전제로 한다.\n\n## 규약 (refine `@refinedev/simple-rest`, json-server 스타일)\n- 목록 페이지네이션: `_start`(offset, 포함), `_end`(offset, 미포함). 반환 배열과 함께 전체 개수를 **`X-Total-Count` 응답 헤더**로 반드시 내려준다.\n- 정렬: `_sort`(필드명, 콤마 구분), `_order`(`asc`/`desc`, 콤마 구분).\n- 필터: `{field}_like`, `{field}_ne`, `{field}_gte`, `{field}_lte`, `{field}_gt`, `{field}_lt`, 정확히 일치는 `{field}=값`.\n- 필드 네이밍은 **camelCase**(`categoryId`, `tagIds`, `parentId`, `authorName`, `publishedAt`, `createdAt` 등).\n- 수정은 `PATCH /{resource}/{id}`(부분 수정).\n- 에러 응답 바디는 `{ \"message\": \"...\" }`.\n- `useMany`(연관 데이터 조회)는 별도 엔드포인트 없이 `GET /{resource}/{id}` 를 id 개수만큼 호출한다.\n- CORS 사용 시 `Access-Control-Expose-Headers: X-Total-Count` 설정이 필요하다."
   },
-  "servers": [{ "url": "http://localhost:9000", "description": "로컬 개발 서버" }],
+  "servers": [
+    { "url": "http://localhost:9000/admin/api/v1", "description": "로컬 개발 서버 (관리자 API)" }
+  ],
   "tags": [
     { "name": "posts", "description": "게시글" },
-    { "name": "categories", "description": "카테고리" },
+    { "name": "categories", "description": "카테고리(자기참조 트리)" },
     { "name": "tags", "description": "태그" },
-    { "name": "comments", "description": "댓글" }
+    { "name": "comments", "description": "댓글(스레드)" }
   ],
   "paths": {
     "/posts": {
@@ -23,33 +25,23 @@
           { "$ref": "#/components/parameters/sort" },
           { "$ref": "#/components/parameters/order" },
           { "name": "title_like", "in": "query", "schema": { "type": "string" }, "description": "제목 부분 일치 필터" },
-          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["draft", "published", "rejected"] }, "description": "상태 정확 일치 필터" },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["draft", "published", "archived"] }, "description": "상태 정확 일치 필터" },
           { "name": "categoryId", "in": "query", "schema": { "type": "integer" }, "description": "카테고리 정확 일치 필터" }
         ],
         "responses": {
           "200": {
             "description": "게시글 목록",
             "headers": { "X-Total-Count": { "$ref": "#/components/headers/XTotalCount" } },
-            "content": {
-              "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Post" } }
-              }
-            }
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Post" } } } }
           }
         }
       },
       "post": {
         "tags": ["posts"],
         "summary": "게시글 생성",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostInput" } } }
-        },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostInput" } } } },
         "responses": {
-          "201": {
-            "description": "생성된 게시글",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } }
-          },
+          "201": { "description": "생성된 게시글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } } },
           "400": { "$ref": "#/components/responses/BadRequest" }
         }
       }
@@ -60,25 +52,16 @@
         "tags": ["posts"],
         "summary": "게시글 단건 조회",
         "responses": {
-          "200": {
-            "description": "게시글",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } }
-          },
+          "200": { "description": "게시글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } } },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
       "patch": {
         "tags": ["posts"],
         "summary": "게시글 수정(부분)",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostInput" } } }
-        },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostInput" } } } },
         "responses": {
-          "200": {
-            "description": "수정된 게시글",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } }
-          },
+          "200": { "description": "수정된 게시글", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Post" } } } },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
@@ -86,7 +69,7 @@
         "tags": ["posts"],
         "summary": "게시글 삭제",
         "responses": {
-          "200": { "description": "삭제 성공(빈 객체 또는 삭제된 리소스)", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "200": { "description": "삭제 성공", "content": { "application/json": { "schema": { "type": "object" } } } },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
@@ -100,7 +83,8 @@
           { "$ref": "#/components/parameters/end" },
           { "$ref": "#/components/parameters/sort" },
           { "$ref": "#/components/parameters/order" },
-          { "name": "title_like", "in": "query", "schema": { "type": "string" }, "description": "제목 부분 일치 필터" }
+          { "name": "name_like", "in": "query", "schema": { "type": "string" }, "description": "이름 부분 일치 필터" },
+          { "name": "parentId", "in": "query", "schema": { "type": "integer" }, "description": "상위 카테고리 정확 일치 필터" }
         ],
         "responses": {
           "200": {
@@ -157,7 +141,7 @@
           { "$ref": "#/components/parameters/end" },
           { "$ref": "#/components/parameters/sort" },
           { "$ref": "#/components/parameters/order" },
-          { "name": "title_like", "in": "query", "schema": { "type": "string" }, "description": "제목 부분 일치 필터" }
+          { "name": "name_like", "in": "query", "schema": { "type": "string" }, "description": "이름 부분 일치 필터" }
         ],
         "responses": {
           "200": {
@@ -215,7 +199,8 @@
           { "$ref": "#/components/parameters/sort" },
           { "$ref": "#/components/parameters/order" },
           { "name": "postId", "in": "query", "schema": { "type": "integer" }, "description": "게시글 정확 일치 필터" },
-          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["draft", "published", "rejected"] }, "description": "상태 정확 일치 필터" }
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "approved", "spam"] }, "description": "상태 정확 일치 필터" },
+          { "name": "authorName_like", "in": "query", "schema": { "type": "string" }, "description": "작성자 이름 부분 일치 필터" }
         ],
         "responses": {
           "200": {
@@ -273,96 +258,111 @@
       "order": { "name": "_order", "in": "query", "schema": { "type": "string" }, "description": "정렬 방향(콤마 구분, _sort와 1:1). 예: desc 또는 desc,asc" }
     },
     "headers": {
-      "XTotalCount": {
-        "description": "필터 적용 후 전체 레코드 수. 페이지네이션 계산에 필수.",
-        "schema": { "type": "integer" }
-      }
+      "XTotalCount": { "description": "필터 적용 후 전체 레코드 수. 페이지네이션 계산에 필수.", "schema": { "type": "integer" } }
     },
     "responses": {
-      "BadRequest": {
-        "description": "잘못된 요청",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      },
-      "NotFound": {
-        "description": "리소스를 찾을 수 없음",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
-      }
+      "BadRequest": { "description": "잘못된 요청", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "리소스를 찾을 수 없음", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
     },
     "schemas": {
       "Post": {
         "type": "object",
-        "required": ["id", "title", "content", "status", "categoryId", "tagIds", "createdAt", "updatedAt"],
+        "required": ["id", "title", "slug", "content", "status", "tagIds", "createdAt", "updatedAt"],
         "properties": {
           "id": { "type": "integer", "readOnly": true, "example": 1 },
           "title": { "type": "string", "example": "첫 번째 게시글" },
+          "slug": { "type": "string", "example": "hello-world" },
+          "excerpt": { "type": "string", "example": "요약문" },
           "content": { "type": "string", "example": "본문 내용" },
-          "status": { "type": "string", "enum": ["draft", "published", "rejected"], "example": "published" },
-          "categoryId": { "type": "integer", "example": 2 },
-          "tagIds": { "type": "array", "items": { "type": "integer" }, "example": [1, 3] },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"], "example": "published" },
+          "categoryId": { "type": "integer", "nullable": true, "example": 2 },
+          "tagIds": { "type": "array", "items": { "type": "integer" }, "example": [1, 3], "description": "연결된 태그 ID 배열(폼 라운드트립용)" },
+          "tags": { "type": "array", "items": { "$ref": "#/components/schemas/Tag" }, "readOnly": true, "description": "임베드된 태그 객체(읽기 전용, 선택)" },
+          "publishedAt": { "type": "string", "format": "date-time", "nullable": true },
           "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
           "updatedAt": { "type": "string", "format": "date-time", "readOnly": true }
         }
       },
       "PostInput": {
         "type": "object",
-        "required": ["title", "content", "status", "categoryId"],
+        "required": ["title", "slug", "content", "status"],
         "properties": {
           "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "excerpt": { "type": "string" },
           "content": { "type": "string" },
-          "status": { "type": "string", "enum": ["draft", "published", "rejected"], "default": "draft" },
-          "categoryId": { "type": "integer" },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"], "default": "draft" },
+          "categoryId": { "type": "integer", "nullable": true },
           "tagIds": { "type": "array", "items": { "type": "integer" }, "default": [] }
         }
       },
       "Category": {
         "type": "object",
-        "required": ["id", "title", "createdAt", "updatedAt"],
+        "required": ["id", "name", "slug", "createdAt", "updatedAt"],
         "properties": {
           "id": { "type": "integer", "readOnly": true, "example": 1 },
-          "title": { "type": "string", "example": "공지사항" },
+          "name": { "type": "string", "example": "공지사항" },
+          "slug": { "type": "string", "example": "notice" },
+          "description": { "type": "string", "example": "공지 카테고리" },
+          "parentId": { "type": "integer", "nullable": true, "description": "상위 카테고리 ID(트리 구조). 최상위는 null" },
           "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
           "updatedAt": { "type": "string", "format": "date-time", "readOnly": true }
         }
       },
       "CategoryInput": {
         "type": "object",
-        "required": ["title"],
-        "properties": { "title": { "type": "string" } }
+        "required": ["name", "slug"],
+        "properties": {
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "description": { "type": "string" },
+          "parentId": { "type": "integer", "nullable": true }
+        }
       },
       "Tag": {
         "type": "object",
-        "required": ["id", "title", "createdAt", "updatedAt"],
+        "required": ["id", "name", "slug", "createdAt", "updatedAt"],
         "properties": {
           "id": { "type": "integer", "readOnly": true, "example": 1 },
-          "title": { "type": "string", "example": "react" },
+          "name": { "type": "string", "example": "react" },
+          "slug": { "type": "string", "example": "react" },
           "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
           "updatedAt": { "type": "string", "format": "date-time", "readOnly": true }
         }
       },
       "TagInput": {
         "type": "object",
-        "required": ["title"],
-        "properties": { "title": { "type": "string" } }
+        "required": ["name", "slug"],
+        "properties": {
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        }
       },
       "Comment": {
         "type": "object",
-        "required": ["id", "postId", "text", "status", "createdAt", "updatedAt"],
+        "required": ["id", "postId", "authorName", "content", "status", "createdAt", "updatedAt"],
         "properties": {
           "id": { "type": "integer", "readOnly": true, "example": 1 },
           "postId": { "type": "integer", "example": 1 },
-          "text": { "type": "string", "example": "좋은 글이네요." },
-          "status": { "type": "string", "enum": ["draft", "published", "rejected"], "example": "published" },
+          "parentId": { "type": "integer", "nullable": true, "description": "대댓글의 상위 댓글 ID. 최상위는 null" },
+          "authorName": { "type": "string", "example": "홍길동" },
+          "authorEmail": { "type": "string", "format": "email", "example": "hong@example.com" },
+          "content": { "type": "string", "example": "좋은 글이네요." },
+          "status": { "type": "string", "enum": ["pending", "approved", "spam"], "example": "approved" },
           "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
           "updatedAt": { "type": "string", "format": "date-time", "readOnly": true }
         }
       },
       "CommentInput": {
         "type": "object",
-        "required": ["postId", "text", "status"],
+        "required": ["postId", "authorName", "content", "status"],
         "properties": {
           "postId": { "type": "integer" },
-          "text": { "type": "string" },
-          "status": { "type": "string", "enum": ["draft", "published", "rejected"], "default": "draft" }
+          "parentId": { "type": "integer", "nullable": true },
+          "authorName": { "type": "string" },
+          "authorEmail": { "type": "string", "format": "email" },
+          "content": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "spam"], "default": "pending" }
         }
       },
       "Error": {
