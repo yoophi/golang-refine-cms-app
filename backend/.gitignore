@@ -1,0 +1,19 @@
+# Binaries
+/bin/
+*.exe
+*.out
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+
+# Go workspace
+go.work
+go.work.sum
+
+# OS / editor
+.DS_Store
